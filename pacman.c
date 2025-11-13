@@ -1,4 +1,4 @@
-//Pacman game for final project CS 355
+/Pacman game for final project CS 355
 //Authors: Tessa Masi, Shiqi Tan
 
 //Determine code for ghost AI, determine how to create the maze. 
@@ -44,15 +44,15 @@ int pacman_y = 3;
 void draw_map(){
     for(int y = 0; y < ROWS; y++){
         //prints the value for map[y] at row y, column 0 in the terminal window, so it prints each row
-        mcprintw(y, 0, "%s", map[y]
+        mvprintw(y, 0, "%s", map[y]);
     }
 }
 
 //MOVE PAC-MAN IF NO WALL
-void move_placement(int dy int dx){
+void move_pacman(int dy, int dx){
     int new_y = pacman_y + dy;
     int new_x = pacman_x + dx;
-    if (map[new_y][map_x]) != WALL){
+    if ((map[new_y][new_x]) != WALL){
         map[pacman_y][pacman_x] = EMPTY;
         pacman_y = new_y;
         pacman_x = new_x;
@@ -67,7 +67,7 @@ int main(){
     keypad(stdscr, TRUE);     //Enable arrow keys
 
     int ch;
-    while((ch = getch()) != 'q' { //Press 'q' to quit
+    while((ch = getch()) != 'q') { //Press 'q' to quit
         switch (ch){
             case KEY_UP:
                 move_pacman(-1, 0);
@@ -89,6 +89,8 @@ int main(){
     endwin();
     return 0;
 }
+
+
 
 
 
