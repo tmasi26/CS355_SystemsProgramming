@@ -7,6 +7,7 @@
 
 #include <ncurses.h>
 #include <stdlib.h>
+#include <time.h>
 
 
 //SYMBOLS
@@ -28,12 +29,15 @@ typedef struct {
     int start_x, start_y; 
     int direction;         
     int color_pair;
-    int scared;        
+    int scared;
+    int speed;
+    int after_eaten;
 } Ghost;
 
 Ghost ghosts[GHOST_AMOUNT];
 
 int blue;
+int powerpellet_time = 0;
 
 
 //CREATE BASIC MAP (global)
@@ -124,6 +128,7 @@ void move_pacman(int dy, int dx){
         srand(time(NULL));
         for(int i=0; i<4; i++){
             int gx, gy;
+            ghosts[i].scared = 1;
             //make sure get a right position in map
             do {
                 gx = rand() % (COLS-2) + 1;
@@ -134,7 +139,9 @@ void move_pacman(int dy, int dx){
             ghosts[i].x = ghosts[i].start_x = gx;
             ghosts[i].y = ghosts[i].start_y = gy;
             ghosts[i].direction = rand() % 4;
-            ghosts[i].color_pair = i + 4; 
+            ghosts[i].color_pair = i + 4;
+            ghosts[i].speed = 2 + i; //different speed
+            ghosts[i].move_counter = 0;
         }
     }
 
@@ -147,8 +154,8 @@ void move_pacman(int dy, int dx){
     }
 
     //Ghosts movement
-    void move_ghosts(){
-        for(int i=0; i<4; i++){
+    void move_ghosts(int i){
+       
             //next position
             int nx = ghosts[i].x + dx[ghosts[i].direction];
             int ny = ghosts[i].y + dy[ghosts[i].direction];
@@ -186,18 +193,21 @@ void move_pacman(int dy, int dx){
                     ghosts[i].x = ghosts[i].start_x;
                     ghosts[i].y = ghosts[i].start_y;
                     ghosts[i].scared = 0;
+                    ghosts[i].speed = 2 + i; //different speed
+                    ghosts[i].move_counter = 0;
                     ghosts[i].direction = rand()%4;
                     continue;
+                }else{
+                    //no power pellets
+                    mvprintw(ROWS+1, 0, "Game-Over!");
+                    refresh();
+                    getch();
+                    endwin();
+                    exit(0);
                 }
 
-                //no power pellets
-                /*mvprintw(ROWS+1, 0, "Game-Over!");
-                refresh();
-                getch();
-                endwin();
-                exit(0);*/
+               
             }
-        }
     }
 
     //DRAW GHOSTS
@@ -209,25 +219,21 @@ void move_pacman(int dy, int dx){
         }
     }
 
-    //if pacman has power pellets
-    void blue_ghosts(){
-        if(blue == 0){
-            //no power pellets
-            for(int i=0; i<GHOST_AMOUNT; i++) {
-                ghosts[i].scared = 0;
-                ghosts[i].color_pair = i + 4;
+    //blue mode
+    void blue_ghosts() {
+    for(int i = 0; i < GHOST_AMOUNT; i++) {
+        // 1. after eaten by pacman ,recover
+        if(ghosts[i].after_eaten) {
+            ghosts[i].color_pair = i + 4;
+        } else if(blue == 1 && ghosts[i].scared) {
+            // 2. blue mode
+            ghosts[i].color_pair = 8;
+        } else {
+            // 3. no powerpellet , no blue mode
+            ghosts[i].color_pair = i + 4;
         }
     }
-        else{
-            //if pacman has the Power Pellets
-            for(int i=0; i<GHOST_AMOUNT; i++) {
-                ghosts[i].scared = 1;
-                ghosts[i].color_pair = 9; 
-        }
-
-    }
-
-    }
+}
 
 
 int main(){
@@ -246,11 +252,12 @@ int main(){
     init_pair(5, COLOR_CYAN, -1);               // ghost 2 
     init_pair(6, COLOR_MAGENTA, -1);            // ghost 3
     init_pair(7, COLOR_GREEN, -1);              // ghost 4
+    init_pair(8, COLOR_BLUE, -1);               //scared mode
 
     initialize_ghosts();
 
     blue = 1; //test blue mode
-    blue_ghosts();
+    
 
     int ch;
     while((ch = getch()) != 'q') { //Press 'q' to quit
@@ -268,7 +275,25 @@ int main(){
                 move_pacman(0, 1);
                 break;
         }
-        move_ghosts(); 
+        for(int i = 0; i < GHOST_AMOUNT; i++){
+            ghosts[i].move_counter++;
+            // slow speed, mover until counter
+            if(ghosts[i].move_counter >= ghosts[i].speed){
+                move_ghosts(i);  
+                ghosts[i].move_counter = 0;
+    }
+}
+        // blue mode timer check
+        if (blue == 1 && powerpellet_time == 0){
+            powerpellet_time = time(NULL); // start timer when first triggered
+        }
+    
+        if (blue == 1 && time(NULL) - powerpellet_time >= 10){
+            blue = 0;              // turn off blue mode
+            powerpellet_time = 0;  // reset timer
+                     
+        }
+        blue_ghosts();
         clear();
         draw_map();      
         draw_ghosts();   
