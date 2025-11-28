@@ -19,6 +19,23 @@
 #define ROWS 30
 #define COLS 30
 
+//create ghost
+#define GHOST_AMOUNT 4
+
+//GHOST structure
+typedef struct {
+    int x, y;             
+    int start_x, start_y; 
+    int direction;         
+    int color_pair;
+    int scared;        
+} Ghost;
+
+Ghost ghosts[GHOST_AMOUNT];
+
+int blue;
+
+
 //CREATE BASIC MAP (global)
 char map[ROWS][COLS+1] = {
 "##############################",
@@ -97,6 +114,122 @@ void move_pacman(int dy, int dx){
     }
 }
 
+//ghost direction
+    int dx[4] = {0, 0, -1, 1};  
+    int dy[4] = {-1, 1, 0, 0};
+
+
+    //initialize ghosts
+    void initialize_ghosts(){
+        srand(time(NULL));
+        for(int i=0; i<4; i++){
+            int gx, gy;
+            //make sure get a right position in map
+            do {
+                gx = rand() % (COLS-2) + 1;
+                gy = rand() % (ROWS-2) + 1;
+            } while(map[gy][gx] == WALL || (gx == pacman_x && gy == pacman_y)||map[gy][gx] != '.');
+
+            //get start
+            ghosts[i].x = ghosts[i].start_x = gx;
+            ghosts[i].y = ghosts[i].start_y = gy;
+            ghosts[i].direction = rand() % 4;
+            ghosts[i].color_pair = i + 4; 
+        }
+    }
+
+
+    int opposite(int dir){
+        if(dir == 0) return 1;
+        if(dir == 1) return 0;
+        if(dir == 2) return 3;
+        return 2;
+    }
+
+    //Ghosts movement
+    void move_ghosts(){
+        for(int i=0; i<4; i++){
+            //next position
+            int nx = ghosts[i].x + dx[ghosts[i].direction];
+            int ny = ghosts[i].y + dy[ghosts[i].direction];
+            //no wall, keep going
+            if(map[ny][nx] != WALL){
+                ghosts[i].x = nx;
+                ghosts[i].y = ny;
+            } else {
+                //change direction
+                int possible[4];
+                int count=0;
+                for(int d=0; d<4; d++){
+                    //reduce go back and forth
+                    if(d == opposite(ghosts[i].direction)){
+                        continue; 
+                    }
+                    //test all direction 
+                    int tx = ghosts[i].x + dx[d];
+                    int ty = ghosts[i].y + dy[d];
+                    if(map[ty][tx] != WALL) possible[count++] = d;
+                }
+                if(count > 0){
+                    ghosts[i].direction = possible[rand()%count];
+                    ghosts[i].x += dx[ghosts[i].direction];
+                    ghosts[i].y += dy[ghosts[i].direction];
+                } else {
+                    ghosts[i].direction = opposite(ghosts[i].direction);
+                }
+            }
+
+            //pacman encounter ghosts
+            if(ghosts[i].x == pacman_x && ghosts[i].y == pacman_y){
+                //if power pellets, blue mode
+                if(ghosts[i].scared){
+                    ghosts[i].x = ghosts[i].start_x;
+                    ghosts[i].y = ghosts[i].start_y;
+                    ghosts[i].scared = 0;
+                    ghosts[i].direction = rand()%4;
+                    continue;
+                }
+
+                //no power pellets
+                /*mvprintw(ROWS+1, 0, "Game-Over!");
+                refresh();
+                getch();
+                endwin();
+                exit(0);*/
+            }
+        }
+    }
+
+    //DRAW GHOSTS
+    void draw_ghosts(){
+        for(int i=0; i<GHOST_AMOUNT; i++){
+            attron(COLOR_PAIR(ghosts[i].color_pair));
+            mvaddch(ghosts[i].y, ghosts[i].x, 'G'); 
+            attroff(COLOR_PAIR(ghosts[i].color_pair));
+        }
+    }
+
+    //if pacman has power pellets
+    void blue_ghosts(){
+        if(blue == 0){
+            //no power pellets
+            for(int i=0; i<GHOST_AMOUNT; i++) {
+                ghosts[i].scared = 0;
+                ghosts[i].color_pair = i + 4;
+        }
+    }
+        else{
+            //if pacman has the Power Pellets
+            for(int i=0; i<GHOST_AMOUNT; i++) {
+                ghosts[i].scared = 1;
+                ghosts[i].color_pair = 9; 
+        }
+
+    }
+
+    }
+
+
 int main(){
     initscr();                //Start ncurses
     noecho();                 //Do not print key presses
@@ -108,6 +241,16 @@ int main(){
     init_pair(1, COLOR_BLUE, COLOR_BLUE);       //walls: blue on blue
     init_pair(2, COLOR_YELLOW, -1);             //pacman: yellow foreground, default background
     init_pair(3, COLOR_WHITE, -1);              //Free space: white
+
+    init_pair(4, COLOR_RED, -1);                // ghost 1 
+    init_pair(5, COLOR_CYAN, -1);               // ghost 2 
+    init_pair(6, COLOR_MAGENTA, -1);            // ghost 3
+    init_pair(7, COLOR_GREEN, -1);              // ghost 4
+
+    initialize_ghosts();
+
+    blue = 1; //test blue mode
+    blue_ghosts();
 
     int ch;
     while((ch = getch()) != 'q') { //Press 'q' to quit
@@ -125,9 +268,12 @@ int main(){
                 move_pacman(0, 1);
                 break;
         }
+        move_ghosts(); 
         clear();
-        draw_map();
+        draw_map();      
+        draw_ghosts();   
         refresh();
+        napms(180);
     }
     endwin();
     return 0;
