@@ -19,11 +19,7 @@
 
 // MAP SIZE
 #define ROWS 30
-#define COLS 59
-
-// Tunnel info
-#define WIDTH 59
-#define TUNNEL_HEIGHT 15
+#define COLS 60
 
 
 //create ghost
@@ -79,7 +75,7 @@ char map[ROWS][COLS+1] = {
     "# . ##  ##### . #####   # . ###   # . ##### . . .## . # . #",
     "# . ##  ##### . #####   # . ###   # . . ### . ##### . # . #",
     "# . ##  ##### . #####   # . ###   # . ##### . ##### . # . #",
-    "  . ##     ## . #       # . #     # . ##### . ##### . # .  ",
+    "# . ##     ## . #       # . #     # . ##### . ##### . # . #",
     "# . ##     ## . #       # . ####### . . . . . . . . . . . #",
     "# . ##     ## . #       # . . . . . . . ############### . #",
     "# . ##     ## . ######### . # . ##### . ############### . #",
@@ -123,54 +119,64 @@ void draw_map() {
     }
 }
 
-// Make a tunnel in the middle of the map
-void tunnel(int *x, int y, int width) {
-    if (y == TUNNEL_HEIGHT) {
+// Draw a small banner / points display at the TOP LEFT (row 0..5, col 0..width)
+void draw_pacman_label() {
+    static int last_second = 0;
+    static int toggle = 0;
 
-        if (*x < 0) {
-        *x = width - 1; 
+    time_t now = time(NULL);
+    if (now != last_second) {
+        last_second = now;
+        toggle = !toggle;    // switch color every second
     }
-    else if (*x >= width) {
-        *x = 0;   
-        
-    }
-}
-}
 
-
-void draw_point_count(){
-    char points_map[6][200] = {
-    "           ######*   #####*  ########* ###*   ##* ########* ########* ",
-    "           ##***##* ##***##*    ##**** ####*  ##*    ##**** ##******* ",
-    "           ######** ##*  ##*    ##*    ##*##* ##*    ##*    ########* ",
-    "           ##*****  ##*  ##*    ##*    ##**##*##*    ##*    ******##* ",
-    "           ##*       #####*   #######* ##* *####*    ##*    ########* ",
-    "           ***       *****    ******** ***  *****    ***    ********* "
+    const char *points_map[6] = {
+        "  ######*   #####*   ######* ###*   ###*  #####*  ###*   ##* ",
+        "  ##***##* ##***##* ##****** ####* ####* ##***##* ####*  ##* ",
+        "  ######** #######* ##*      ##*####*##* #######* ##*##* ##* ",
+        "  ##*****  ##***##* ##*      ##**##**##* ##***##* ##**##*##* ",
+        "  ##*      ##*  ##* *######* ##* **  ##* ##*  ##* ##* *####* ",
+        "  ***      ***  ***  ******* ***     *** ***  *** ***  ***** "
     };
+    int start_row = ROWS + 1;  // << draw at the bottom ALWAYS
+    int start_col = 0;         // or center later
+
     for (int y = 0; y < 6; y++) {
-        for (int x = COLS; x < COLS +70; x++) {
-            char ch = map[y][x];
-            if (ch == '#') {
-                attron(COLOR_PAIR(1));
-                mvaddch(y, x, ' ');
-                attroff(COLOR_PAIR(1));
-            } else if (ch == '*') {
-                //attron(A_DIM);
-                attron(COLOR_PAIR(2));
-                mvaddch(y, x, ' ');
+        const char *row = points_map[y];
+
+        for (int x = 0; row[x] != '\0'; x++) {
+            char ch = row[x];
+            int scr_y = start_row + y;
+            int scr_x = start_col + x;
+            if (ch == '*') {
+                if (toggle)
+                    attron(COLOR_PAIR(2));
+                else
+                    attron(COLOR_PAIR(5));
+
+                mvaddch(scr_y, scr_x, POINT);
                 attroff(COLOR_PAIR(2));
-                //attroff(A_DIM);
-                
+                attroff(COLOR_PAIR(5));
             }
-        }
+            else{
+                attron(A_DIM);
+                mvaddch(scr_y, scr_x, ch);
+                attroff(A_DIM);
+            }
+        } 
     }
 }
 
-void point_counter(){
-    if (map[pacman_x][pacman_y] == POINT){
-        points++;
-    }
+
+// Draw the points collected in the top-left corner
+void draw_points_corner() {
+    attron(COLOR_PAIR(3));          // Use the same color as the points
+    mvprintw(30, 0, "Points: %d", points);  // row 0, col 0
+    attroff(COLOR_PAIR(5));
+    mvprintw(30, 10, "Lives: %d", 3);  // row 0, col 0
 }
+
+
 
 // Modify move_pacman function
 void move_pacman() {
@@ -182,12 +188,13 @@ void move_pacman() {
     
     int new_x = pacman_x + pacman_dx;
     int new_y = pacman_y + pacman_dy;
-     tunnel(&new_x, new_y, WIDTH);
+
     // Check boundaries and walls
     if (new_x >= 0 && new_x < COLS && new_y >= 0 && new_y < ROWS && 
         map[new_y][new_x] != WALL) {
         if(map[new_y][new_x] == POINT){
             new_x = new_x;
+            points++;
         } else if(map[new_y][new_x] == EMPTY && ((map[new_y][new_x-1] == POINT) || (map[new_y][new_x+1]) == POINT) ){
             if(map[new_y][new_x-1] == POINT){
                 new_x = new_x - 1;
@@ -201,6 +208,7 @@ void move_pacman() {
         // Update position
         pacman_x = new_x;
         pacman_y = new_y;
+        
         // Draw Pac-Man at new position
         map[pacman_y][pacman_x] = PACMAN;
     }
@@ -242,7 +250,6 @@ void move_ghosts() {
         for(int d = 0; d < 4; d++) {
             int nx = ghosts[i].x + dx[d];
             int ny = ghosts[i].y + dy[d];
-            tunnel(&nx, ny, WIDTH);
 
             if(nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && map[ny][nx] != WALL) {
                 int dist = abs(nx - pacman_x) + abs(ny - pacman_y);
@@ -297,16 +304,26 @@ void draw_ghosts(){
     }
 }
 
-void power_pellets(){
-    int rx, ry;
-    if (points % 25 == 0){
-        do {
-                rx = rand() % (COLS-2) + 1;
-                ry = rand() % (ROWS-2) + 1;
-            } while(map[ry][rx] == WALL || (map[ry][rx] == EMPTY));
-        mvaddch(ry, rx, '@');
+// Spawn power-pellets occasionally. Track last_spawned so we don't spawn every frame.
+int last_power_spawn_points = -1;
+
+void power_pellets() {
+    // spawn at multiples of 25 once (ignore zero)
+    if (points > 0 && points % 25 == 0 && points != last_power_spawn_points) {
+        int rx, ry;
+        // try to find a '.' location to replace with '@' (power pellet)
+        for (int tries = 0; tries < 200; tries++) {
+            rx = rand() % (COLS-2) + 1;
+            ry = rand() % (ROWS-2) + 1;
+            if (map[ry][rx] == POINT) {
+                map[ry][rx] = '@';   // mark power pellet on map
+                last_power_spawn_points = points;
+                break;
+            }
+        }
     }
 }
+
 
 //blue mode
 void blue_ghosts() {
@@ -348,7 +365,6 @@ int main() {
     // Initialize Pac-Man position
     map[pacman_y][pacman_x] = PACMAN;
     initialize_ghosts();
-    draw_point_count();
 
     while (running) {
         int ch = getch();
@@ -385,7 +401,7 @@ int main() {
         for(int i = 0; i < GHOST_AMOUNT; i++){
             ghosts[i].move_counter++;
             if(ghosts[i].move_counter >= ghosts[i].speed){
-                move_ghosts();  
+                move_ghosts(i);  
                 ghosts[i].move_counter = 0;
             }
         }
@@ -397,21 +413,15 @@ int main() {
         
         blue_ghosts();
         clear();
-        draw_map();      
+        draw_map();  
         draw_ghosts();  
-        //draw_point_count(); 
+        
+        draw_pacman_label();  
+        draw_points_corner();
         refresh();
         napms(50);  // You can adjust this for overall game speed
     }
     endwin();
     return 0;
 }
-
-
-
-
-
-  
-
-
 
