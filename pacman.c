@@ -19,7 +19,11 @@
 
 // MAP SIZE
 #define ROWS 30
-#define COLS 60
+#define COLS 59
+
+// Tunnel info
+#define WIDTH 59
+#deine TUNNEL_HEIGHT 15
 
 
 //create ghost
@@ -75,7 +79,7 @@ char map[ROWS][COLS+1] = {
     "# . ##  ##### . #####   # . ###   # . ##### . . .## . # . #",
     "# . ##  ##### . #####   # . ###   # . . ### . ##### . # . #",
     "# . ##  ##### . #####   # . ###   # . ##### . ##### . # . #",
-    "# . ##     ## . #       # . #     # . ##### . ##### . # . #",
+    "  . ##     ## . #       # . #     # . ##### . ##### . # .  ",
     "# . ##     ## . #       # . ####### . . . . . . . . . . . #",
     "# . ##     ## . #       # . . . . . . . ############### . #",
     "# . ##     ## . ######### . # . ##### . ############### . #",
@@ -118,6 +122,21 @@ void draw_map() {
         }
     }
 }
+
+// Make a tunnel in the middle of the map
+void tunnel(int *x, int y, int width) {
+    if (y == TUNNEL_HEIGHT) {
+
+        if (*x < 0) {
+        *x = width - 1; 
+    }
+    else if (*x >= width) {
+        *x = 0;   
+        
+    }
+}
+}
+
 
 void draw_point_count(){
     char points_map[6][200] = {
@@ -163,7 +182,7 @@ void move_pacman() {
     
     int new_x = pacman_x + pacman_dx;
     int new_y = pacman_y + pacman_dy;
-
+    tunnel(&new_x, new_y, WIDTH);
     // Check boundaries and walls
     if (new_x >= 0 && new_x < COLS && new_y >= 0 && new_y < ROWS && 
         map[new_y][new_x] != WALL) {
@@ -224,6 +243,7 @@ void move_ghosts() {
         for(int d = 0; d < 4; d++) {
             int nx = ghosts[i].x + dx[d];
             int ny = ghosts[i].y + dy[d];
+            tunnel(&nx, ny, WIDTH);
 
             if(nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && map[ny][nx] != WALL) {
                 int dist = abs(nx - pacman_x) + abs(ny - pacman_y);
