@@ -23,7 +23,7 @@
 
 // Tunnel info
 #define WIDTH 59
-#deine TUNNEL_HEIGHT 15
+#define TUNNEL_HEIGHT 15
 
 
 //create ghost
@@ -182,7 +182,7 @@ void move_pacman() {
     
     int new_x = pacman_x + pacman_dx;
     int new_y = pacman_y + pacman_dy;
-    tunnel(&new_x, new_y, WIDTH);
+     tunnel(&new_x, new_y, WIDTH);
     // Check boundaries and walls
     if (new_x >= 0 && new_x < COLS && new_y >= 0 && new_y < ROWS && 
         map[new_y][new_x] != WALL) {
@@ -201,7 +201,6 @@ void move_pacman() {
         // Update position
         pacman_x = new_x;
         pacman_y = new_y;
-        
         // Draw Pac-Man at new position
         map[pacman_y][pacman_x] = PACMAN;
     }
@@ -386,7 +385,7 @@ int main() {
         for(int i = 0; i < GHOST_AMOUNT; i++){
             ghosts[i].move_counter++;
             if(ghosts[i].move_counter >= ghosts[i].speed){
-                move_ghosts(i);  
+                move_ghosts();  
                 ghosts[i].move_counter = 0;
             }
         }
