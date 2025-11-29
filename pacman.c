@@ -8,35 +8,29 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include <time.h>
-#include <math.h>
 
 // SYMBOLS
 #define WALL '#'
-#define PACMAN 'C'
-#define INNER_WALL 'I'
+#define PACMAN 'C' 
 #define EMPTY ' '
 #define POINT '.'
 #define CELL_SIZE 2  // Each corridor step is 2 map units wide
-
-
-// MAP SIZE
-#define ROWS 30
-#define COLS 59
-
-//TUNNEL INFO
 #define WIDTH 59
 #define TUNNEL_HEIGHT 15
 
+// MAP SIZE
+#define ROWS 30
+#define COLS 60
 
 //create ghost
 #define GHOST_AMOUNT 4
-
-//PowerPellets
+//Power pellets
 # define PELLET_AMOUNT 4
 
 //GHOST structure
 typedef struct {
-    int x, y;   
+    int x, y;  
+    int prev_x, prev_y; 
     int start_x, start_y; 
     int direction;
     int color_pair;
@@ -47,11 +41,8 @@ typedef struct {
     int move_timer;
 } Ghost;
 
-
 //creates # of structs for the # of ghosts needed. 
 Ghost ghosts[GHOST_AMOUNT];
-int blue;
-int powerpellet_time = 0;
 
 //PowerPellets structure
 typedef struct{
@@ -61,7 +52,12 @@ typedef struct{
     //exist = 0 means powerpellets are eaten by pacman
 }PowerPellet;
 
+
 PowerPellet pellets[4];
+int blue;
+int powerpellet_time = 0;
+int fruit_location[12][2];
+int fruit_count = 0;
 
 int opposite(int dir){
     if(dir == 0) return 1;
@@ -76,42 +72,49 @@ int dy[4] = {-1, 1, 0, 0};
 
 int running = 1;
 int points = 0;
+int lives = 3;
 
 //CREATE BASIC MAP (global)
 char map[ROWS][COLS+1] = {
-//make the width wider
-//they should only have one spaces to move, gaining  a innerwall to limit the road
-//and we can change the color to make it more "fancy"
-   "###########################################################",
-    "#I. . . . . . . . . . . . . . . . . . . . . . . . . . . .I#",
-    "#I.I########I.I#########I.I#######I.I##################I.I#", 
-    "#I.I######### . . . . . . . . . . . . . . . . . . . . . .I#",
-    "#I.I#########I.I#########I.I#######I.I#####I.I#####I.I#I.I#",
-    "#I.I##     ##I.I#########I.I#     #I.I#####I.I#####I.I#I.I#",
-    "#I.I##     ##I.I#       #I.I###   #I.I#####I.I#####I.I#I.I#",
-    "#I.I##     ##I.I#       #I.I###   #I.I#####I.I# . . .I#I.I#",
-    "#I.I##     ##I.I#   #####I.I###   #I.I# . . .I#####I.I#I.I#",
-    "#I.I##  #####I.I#   #####I.I##    #I.I#####I.I#####I.I#I.I#",
-    "#I.I##  #####I.I#   #####I.I###   #I.I#####I.I#####I.I#I.I#",
-    "#I.I##  #####I.I#       #I.I###   #I.I#####I.I#####I. . .I#",
-    "#I.I##  #####I.I#####   #I.I###   #I.I#####I. . .##I.I#I.I#",
-    "#I.I##  #####I.I#####   #I.I###   #I. . ###I.I#####I.I#I.I#",
-    "#I.I##  #####I.I#####   #I.I###   #I.I#####I.I#####I.I#I.I#",
-    "  .I##     ##I.I#       #I.I#     #I.I#####I.I#####I.I#I.  ",
-    "#I.I##     ##I.I#       #I.I#######I. . . . . . . . . . .I#",
-    "#I.I##     ##I.I#       #I. . . . . . .I###############I.I#",
-    "#I.I##     ##I.I#########I.I#I.I#####I.I###############I.I#",
-    "#I.I#########I.I#########I.I#I.I#####I.I###############I.I#",
-    "#I.I#########I.I#########I.I#I.I#####I.I###############I.I#",
-    "#I.I#########I. . . . . . .I#I. .I#I. . . . . . . . . . .I#",
-    "#I. . . . . . . . .I###########I.I#I.I#######I.I#######I.I#",
-    "#I.I#######I.I###I.I###########I.I#I.I#######I.I#######I.I#",
-    "#I.I#######I.I###I.I###########I.I#I.I#######I.I#######I.I#",
-    "#I.I#######I.I###I.I###########I.I#I.I#######I.I#######I.I#",
-    "#I.I#######I.I###I.I###########I.I#I.I#######I.I#######I.I#",
-    "#I.I#######I.I###I.I###########I.I#I.I#######I.I#######I.I#",
-    "#I. . . . . . . . . . . . . . . . . .I#######I. . . . . .I#",
+    "###########################################################",
+    "# . . . . . . . . . . . . . . . . . . . . . . . . . . . . #",
+    "# . ######## . ######### . ####### . ################## . #", 
+    "# . ######### . . . . . . . . . . . . . . . . . . . . . . #",
+    "# . ######### . ######### . ####### . ##### . ##### . # . #",
+    "# . ##     ## . ######### . #     # . ##### . ##### . # . #",
+    "# . ##     ## . #       # . ###   # . ##### . ##### . # . #",
+    "# . ##     ## . #       # . ###   # . ##### . # . . . # . #",
+    "# . ##     ## . ######### . ###   # . # . . . ##### . # . #",
+    "# . ##  ##### . #   ##### . ##   ## . ##### . ##### . # . #",
+    "# . ##  ##### . #   ##### . ###   # . ##### . ##### . # . #",
+    "# . ##  ##### . #       # . ###   # . ##### . ##### . . . #",
+    "# . ##  ##### . #####   # . ###   # . ##### . . .## . # . #",
+    "# . ##  ##### . #####   # . ###   # . . ### . ##### . # . #",
+    "  . ##  ##### . #####   # . ###   # . ##### . ##### . # .  ",
+    "  . ##     ## . #       # . #     # . ##### . ##### . # .  ",
+    "  . ##     ## . #       # . ####### . . . . . . . . . . .  ",
+    "# . ##     ## . #       # . . . . . . . ############### . #",
+    "# . ##     ## . ######### . # . ##### . ############### . #",
+    "# . ######### . ######### . # . ##### . ############### . #",
+    "# . ######### . ######### . # . ##### . ############### . #",
+    "# . ######### . . . . . . . # . . # . . . . . . . . . . . #",
+    "# . . . . . . . . . ########### . # . ####### . ####### . #",
+    "# . ####### . ### . ########### . # . ####### . ####### . #",
+    "# . ####### . ### . ########### . # . ####### . ####### . #",
+    "# . ####### . ### . ########### . # . ####### . ####### . #",
+    "# . ####### . ### . ########### . # . ####### . ####### . #",
+    "# . ####### . ### . ########### . # . ####### . ####### . #",
+    "# . . . . . . . . . . . . . . . . . . ####### . . . . . . #",
     "###########################################################"
+};
+
+char *game_over[6]= {
+    " ######*  #####*  ###*   ###* #######*    #####*  ##*   ##* #######* ######*  ",
+    "##****** ##***##* ####* ####* ##*****    ##***##* ##*   ##* ##*****  ##***##* ",
+    "##* ###* #######* ##*####*##* #####*     ##***##*  ##* ##*  #####*   #######* ",
+    "##* *##* ##***##* ##**##**##* ##***      ##***##*   ####*   ##***    ##*  ##* ",
+    "*######* ##*  ##* ##* **  ##* #######*    #####*     ##*    #######* ##*  ##* ",
+    " ******* ***  *** ***     *** ********    ******     **     ******** ***  *** "
 };
 
 // PAC-MAN Position and movement (global variables)
@@ -131,16 +134,14 @@ void draw_map() {
                 mvaddch(y, x, ' ');
                 attroff(COLOR_PAIR(1));
             }else if (ch == 'I'){
-                attron(COLOR_PAIR(1));
                 mvaddch(y, x, ' ');
-                attroff(COLOR_PAIR(1));
             }else if (ch == 'C') {
                 attron(COLOR_PAIR(2));
                 mvaddch(y, x, PACMAN);
                 attroff(COLOR_PAIR(2));
-            } else if (ch == '@'){
+            } else if (ch == 'O'){
                 attron(COLOR_PAIR(3));
-                mvaddch(y, x, '@');
+                mvaddch(y, x, 'O');
                 attroff(COLOR_PAIR(3));
             }
             else {
@@ -149,15 +150,6 @@ void draw_map() {
         }
     }
 }
-
-// Tunnel
-void tunnel(int *x, int y, int width) {
-    if (y == TUNNEL_HEIGHT) {
-        if (*x < 0) *x = width - 1;
-        else if (*x >= width) *x = 0;
-    }
-}
-
 
 // Draw a small banner / points display at the TOP LEFT (row 0..5, col 0..width)
 void draw_pacman_label() {
@@ -207,13 +199,23 @@ void draw_pacman_label() {
     }
 }
 
+// Tunnel
+void tunnel(int *x, int y, int width) {
+    if (y == TUNNEL_HEIGHT || (y == TUNNEL_HEIGHT + 1) || (y == TUNNEL_HEIGHT - 1)) {
+        if (*x < 0){
+            *x = width - 1;
+        } else if (*x >= width){
+            *x = 1;
+        }
+    }
+}
 
 // Draw the points collected in the top-left corner
 void draw_points_corner() {
     attron(COLOR_PAIR(3));          // Use the same color as the points
     mvprintw(30, 0, "Points: %d", points);  // row 0, col 0
     attroff(COLOR_PAIR(5));
-    mvprintw(30, 10, "Lives: %d", 3);  // row 0, col 0
+    mvprintw(30, 10, "Lives: %d", lives);  // row 0, col 0
 }
 
 
@@ -230,24 +232,13 @@ void move_pacman() {
     int new_y = pacman_y + pacman_dy;
     //when go to the tunnel location, apply tunnel
     tunnel(&new_x, new_y, WIDTH);
-        
+
     // Check boundaries and walls
     if (new_x >= 0 && new_x < COLS && new_y >= 0 && new_y < ROWS && 
-        map[new_y][new_x] != WALL  && map[new_y][new_x] != INNER_WALL ) {
-
-        if(map[new_y][new_x] == POINT) {
-        points++;
-    }
-
-    
-    if(map[pacman_y][pacman_x] == PACMAN) {
-        map[pacman_y][pacman_x] = EMPTY;  
-    }
-        
-        /*if(map[new_y][new_x] == POINT){
+        map[new_y][new_x] != WALL) {
+        if(map[new_y][new_x] == POINT){
             new_x = new_x;
             points++;
-            
         } else if(map[new_y][new_x] == EMPTY && ((map[new_y][new_x-1] == POINT) || (map[new_y][new_x+1]) == POINT) ){
             if(map[new_y][new_x-1] == POINT){
                 new_x = new_x - 1;
@@ -256,7 +247,7 @@ void move_pacman() {
             }
         }
         // Clear old position
-        map[pacman_y][pacman_x] = EMPTY;*/
+        map[pacman_y][pacman_x] = EMPTY;
         
         // Update position
         pacman_x = new_x;
@@ -267,7 +258,6 @@ void move_pacman() {
     }
 }
 
-//Initialize powerpellets
 void initialize_pellets() {
     int positions[PELLET_AMOUNT][2] = {
         {2, 1},    
@@ -279,11 +269,10 @@ void initialize_pellets() {
         pellets[i].x = positions[i][0];
         pellets[i].y = positions[i][1];
         pellets[i].exist = 1;
-        map[pellets[i].y][pellets[i].x] = '@'; 
+        map[pellets[i].y][pellets[i].x] = 'O'; 
     }
 }
 
-// Check if Pac-Man eats pellet
 void check_pellets() {
     for(int i=0; i<PELLET_AMOUNT; i++) {
         if(pellets[i].exist && pacman_x == pellets[i].x && pacman_y == pellets[i].y){
@@ -300,8 +289,6 @@ void check_pellets() {
     }
 }
 
-
-
 //initialize ghosts
 // In initialize_ghosts(), make ghosts much slower:
 void initialize_ghosts(){
@@ -310,37 +297,50 @@ void initialize_ghosts(){
         int gx, gy;
         ghosts[i].scared = 0;  // Start not scared
         //make sure get a right position in map
-        do {
-            gx = rand() % (COLS-2) + 1;
-            gy = rand() % (ROWS-2) + 1;
-        } while(map[gy][gx] == WALL || map[gy][gx] == INNER_WALL || map[gy][gx] == EMPTY || map[gy][gx] == PACMAN);
+        if (i == 0){
+            gx = 1;
+            gy = 1;
+        }else if (i == 1){
+            gx = COLS - 3;
+            gy = 1;
+        }
+        else if(i == 2){
+            gx = 1;
+            gy = ROWS - 1;
+        }
+        else {
+            gx = COLS - 3;
+            gy = ROWS - 3;
+        }
         ghosts[i].x = ghosts[i].start_x = gx;
         ghosts[i].y = ghosts[i].start_y = gy;
         ghosts[i].direction = rand() % 4;
         ghosts[i].color_pair = i + 4;
-        ghosts[i].speed = 3 + i;  // Much higher numbers = slower ghosts
+        ghosts[i].speed = 3 + i*2;  // Much higher numbers = slower ghosts
         ghosts[i].move_counter = 0;
         ghosts[i].after_eaten = 0;
     }
 }
 
-//Ghosts movement, follow pacman
+//Ghosts 1-2, uses DFS
 void move_ghosts12(int i) {
-    for(int i = 0; i < GHOST_AMOUNT; i++) {
-        
+    for(int i = 0; i < 2; i++) {
         // Only move when timer reaches speed
         if (ghosts[i].move_counter < ghosts[i].speed) {
             continue;
         }
+        int gx = ghosts[i].x;
+        int gy = ghosts[i].y;
+        ghosts[i].prev_x = ghosts[i].x;
+        ghosts[i].prev_y = ghosts[i].y;
         // --- Ghost chooses direction ---
         int best_dir = -1;
         int min_dist = 1000;
         for(int d = 0; d < 4; d++) {
             int nx = ghosts[i].x + dx[d];
             int ny = ghosts[i].y + dy[d];
-            tunnel(&nx, ny, WIDTH);
 
-            if(nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && map[ny][nx] != WALL && map[ny][nx] != INNER_WALL) {
+            if(nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS && map[ny][nx] != WALL) {
                 int dist = abs(nx - pacman_x) + abs(ny - pacman_y);
 
                 if(dist < min_dist) {
@@ -359,42 +359,61 @@ void move_ghosts12(int i) {
     }
 }
 
-//ghosts 2, randomly move
+//Ghost 3, random movement
 void move_ghosts3(int i){
-     if (ghosts[i].move_counter < ghosts[i].speed) return;
+    ghosts[i].move_counter++;
+    if (ghosts[i].move_counter < ghosts[i].speed){
+        return;
+    }
     int nx = ghosts[i].x + dx[ghosts[i].direction];
     int ny = ghosts[i].y + dy[ghosts[i].direction];
-    tunnel(&nx, ny, WIDTH);
 
     if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS &&
-        map[ny][nx] != WALL && map[ny][nx] != INNER_WALL) {
-        ghosts[i].x = nx;
+        map[ny][nx] != WALL) {
+        if (map[ny][nx+1] == WALL){
+            ghosts[i].x = nx - 1;
+        } else if (map[ny][nx-1] == WALL){
+            ghosts[i].x = nx + 1;
+        } else{
+            ghosts[i].x = nx;
+        }
         ghosts[i].y = ny;
     } else {
         // Choose a new valid direction randomly
         int possible[4];
         int count = 0;
-        for (int d = 0; d < 4; d++) {
-            if (d == opposite(ghosts[i].direction)) continue;
+
+        // check all directions except opposite
+        for(int d=0; d<4; d++){
+            if(d == opposite(ghosts[i].direction)) continue;
             int tx = ghosts[i].x + dx[d];
             int ty = ghosts[i].y + dy[d];
-            if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS &&
-                map[ty][tx] != WALL && map[ty][tx] != INNER_WALL) {
+            if(tx >=0 && tx < COLS && ty >=0 && ty < ROWS && map[ty][tx] != WALL){
                 possible[count++] = d;
             }
         }
-        if (count > 0) {
-            ghosts[i].direction = possible[rand() % count];
+
+        if(count > 0){
+            // pick the direction that minimizes distance to Pac-Man
+            int best = 0;
+            int min_dist = 1000;
+            for(int k=0;k<count;k++){
+                int d = possible[k];
+                int dist = abs((ghosts[i].x + dx[d]) - pacman_x) + abs((ghosts[i].y + dy[d]) - pacman_y);
+                if(dist < min_dist){
+                    min_dist = dist;
+                    best = k;
+                }
+            }
+            ghosts[i].direction = possible[best];
             ghosts[i].x += dx[ghosts[i].direction];
             ghosts[i].y += dy[ghosts[i].direction];
-        } else {
-            ghosts[i].direction = opposite(ghosts[i].direction);
         }
     }
     ghosts[i].move_counter = 0;
 }
 
-//ghosts 4, somtimes follow, somtimes randomly
+//Ghost 4, either DFS or random movement
 void move_ghosts4(int i){
     if (ghosts[i].move_counter < ghosts[i].speed) return;
     int choice = rand() % 3;
@@ -407,29 +426,30 @@ void move_ghosts4(int i){
     ghosts[i].move_counter = 0;
 }
 
-
 //pacman encounter ghosts
 void check_encounter(){
     for (int i = 0; i < 4; i++){
-        if(ghosts[i].x == pacman_x && ghosts[i].y == pacman_y){
+        if ((ghosts[i].x == pacman_x && ghosts[i].y == pacman_y) || (ghosts[i].prev_x == pacman_x && ghosts[i].prev_y == pacman_y) ){
             //if power pellets, blue mode
             if(ghosts[i].scared){
                 ghosts[i].x = ghosts[i].start_x;
                 ghosts[i].y = ghosts[i].start_y;
                 ghosts[i].scared = 0;
-                ghosts[i].speed = 3 + i; //different speed
-                ghosts[i].after_eaten = 1;
+                ghosts[i].speed = 2 + i; //different speed
                 ghosts[i].move_counter = 0;
                 ghosts[i].direction = rand()%4;
                 continue;
-            } else{
+            } else if (lives != 0 ){
+                lives--;
+            }else{
                 //no power pellets
                 mvprintw(ROWS+1, 0, "Game-Over!");
                 refresh();
                 getch();
                 endwin();
                 exit(0);
-            }   
+            }
+              
         }
     }
 }
@@ -446,24 +466,39 @@ void draw_ghosts(){
 // Spawn power-pellets occasionally. Track last_spawned so we don't spawn every frame.
 int last_power_spawn_points = -1;
 
-/*void power_pellets() {
+void fruit() {
     // spawn at multiples of 25 once (ignore zero)
-    if (points > 0 && points % 25 == 0 && points != last_power_spawn_points) {
+    if (points > 0 && points % 50 == 0 && points != last_power_spawn_points) {
         int rx, ry;
-        // try to find a '.' location to replace with '@' (power pellet)
+        // try to find a '.' location to replace with 'B' (power pellet)
         for (int tries = 0; tries < 200; tries++) {
             rx = rand() % (COLS-2) + 1;
             ry = rand() % (ROWS-2) + 1;
             if (map[ry][rx] == POINT) {
-                map[ry][rx] = '@';   // mark power pellet on map
+                fruit_location[fruit_count][0] = ry;
+                fruit_location[fruit_count][1] = rx;
+                fruit_count++;
+
+                map[ry][rx] = 'B';   // mark power pellet on map
                 last_power_spawn_points = points;
                 break;
             }
         }
     }
-}*/
+}
+
+void check_fruit(){
+    for (int i = 0; i < 4; i++){
+        for (int j  = 0; j < 4; j++){
+            if (fruit_location[j][1] == pacman_x && fruit_location[j][0] == pacman_y) {
+                points = points + 100;
+            }   
+        }   
+    }
+}
 
 
+//blue mode
 void blue_ghosts() {
     for(int i = 0; i < GHOST_AMOUNT; i++) {
         // 1. just enter blue mode
@@ -500,10 +535,9 @@ int main() {
 
     // Initialize Pac-Man position
     map[pacman_y][pacman_x] = PACMAN;
-    initialize_pellets();
-    
+
     initialize_ghosts();
-    
+    initialize_pellets();
 
     while (running) {
         int ch = getch();
@@ -513,43 +547,45 @@ int main() {
             case KEY_UP:    
                 pacman_dy = -1; 
                 pacman_dx = 0;
-                check_encounter(); 
                 break;
             case KEY_DOWN:  
                 pacman_dy = 1;  
                 pacman_dx = 0; 
-                check_encounter();
                 break;
             case KEY_LEFT:  
                 pacman_dx = -1; 
                 pacman_dy = 0; 
-                check_encounter();
                 break;
             case KEY_RIGHT: 
                 pacman_dx = 1;  
                 pacman_dy = 0; 
-                check_encounter();
                 break;
             case 'q':       
-                running = 0; 
-                check_encounter();
+                running = 0;
                 break;
         }
         
+        
+        // Move Pac-Man (now slowed by his speed counter)
+        check_pellets();
+        move_pacman();
+        check_encounter();
         // Move ghosts (they're already slowed by their speed counters)
         for(int i = 0; i < GHOST_AMOUNT; i++){
             ghosts[i].move_counter++;
             if(ghosts[i].move_counter >= ghosts[i].speed){
-                if(i == 0 || i == 1)      move_ghosts12(i); // follow    
-                else if(i == 2) move_ghosts3(i); //randomly   
-                else if(i == 3) move_ghosts4(i);  //follow and randomly   
-                
+                if(i == 0 || i == 1){
+                    move_ghosts12(i); // follow    
+                } else if(i == 2) {
+                    move_ghosts3(i); //randomly   
+                } else if(i == 3) {
+                    move_ghosts4(i);  //follow and randomly   
+                }
                 //move_ghosts(i);
                 check_encounter();  
                 ghosts[i].move_counter = 0;
+            }
         }
-    }
-    
         // blue mode timer check
         if (blue == 1 && powerpellet_time == 0){
             powerpellet_time = time(NULL); // start timer when first triggered
@@ -564,23 +600,20 @@ int main() {
             ghosts[i].speed = 3 + i;
         }
     }
-        
-        // Move Pac-Man (now slowed by his speed counter)
-        check_pellets(); 
-        move_pacman();
+
+        fruit();
+        check_fruit();
         check_encounter();
         blue_ghosts();
-        
         clear();
+
         draw_map();  
         draw_ghosts();  
-        
         draw_pacman_label();  
         draw_points_corner();
         refresh();
-        napms(75);  // You can adjust this for overall game speed
+        napms(50);  // You can adjust this for overall game speed
     }
     endwin();
     return 0;
 }
-
