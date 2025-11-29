@@ -33,7 +33,7 @@ typedef struct {
     // scared = 0 means normal mode, ghosts can eat pacman
     // scared =1 means blue mode, pacman can eat ghosts
     int speed; // this is for adjust different ghosts speed
-    int after_eaten; 
+    // int after_eaten; temporary cancel this one
     // after_eaten = 1 means ghosts are already eaten by pacman, and this is helpful to reset the color and normal behavior
     int move_counter; //count time, make speed slow
 } Ghost;
@@ -158,7 +158,6 @@ void move_pacman(int dy, int dx){
 
     //Ghosts movement
     void move_ghosts(int i){
-       
             //next position
             int nx = ghosts[i].x + dx[ghosts[i].direction];
             int ny = ghosts[i].y + dy[ghosts[i].direction];
@@ -188,8 +187,11 @@ void move_pacman(int dy, int dx){
                     ghosts[i].direction = opposite(ghosts[i].direction);
                 }
             }
+    }
 
             //pacman encounter ghosts
+            void check_encounter(){
+            for (int i = 0; i< 4; i++){
             if(ghosts[i].x == pacman_x && ghosts[i].y == pacman_y){
                 //if power pellets, blue mode
                 if(ghosts[i].scared){
@@ -211,6 +213,7 @@ void move_pacman(int dy, int dx){
 
                
             }
+        }
     }
 
     //DRAW GHOSTS
@@ -225,10 +228,11 @@ void move_pacman(int dy, int dx){
     //blue mode
     void blue_ghosts() {
     for(int i = 0; i < GHOST_AMOUNT; i++) {
-        // 1. after eaten by pacman ,recover
-        if(ghosts[i].after_eaten) {
-            ghosts[i].color_pair = i + 4;
-        } else if(blue == 1 && ghosts[i].scared) {
+        
+       // if(ghosts[i].after_eaten) {
+            //ghosts[i].color_pair = i + 4;
+        //} 
+        if(blue == 1 && ghosts[i].scared) {
             // 2. blue mode
             ghosts[i].color_pair = 8;
         } else {
@@ -267,22 +271,27 @@ int main(){
         switch (ch){
             case KEY_UP:
                 move_pacman(-1, 0);
+                check_encounter();
                 break;
             case KEY_DOWN:
                 move_pacman(1, 0);
+                check_encounter();
                 break;
             case KEY_LEFT:
                 move_pacman(0, -1);
+                check_encounter();
                 break;
             case KEY_RIGHT:
                 move_pacman(0, 1);
+                check_encounter();
                 break;
         }
         for(int i = 0; i < GHOST_AMOUNT; i++){
             ghosts[i].move_counter++;
             // slow speed, mover until counter
             if(ghosts[i].move_counter >= ghosts[i].speed){
-                move_ghosts(i);  
+                move_ghosts(i);
+                check_encounter();
                 ghosts[i].move_counter = 0;
     }
 }
