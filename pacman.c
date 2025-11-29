@@ -26,17 +26,21 @@
 //GHOST structure
 typedef struct {
     int x, y;             
-    int start_x, start_y; 
+    int start_x, start_y; //mark start location, use for come back
     int direction;         
     int color_pair;
     int scared;
-    int speed;
-    int after_eaten;
+    // scared = 0 means normal mode, ghosts can eat pacman
+    // scared =1 means blue mode, pacman can eat ghosts
+    int speed; // this is for adjust different ghosts speed
+    int after_eaten; 
+    // after_eaten = 1 means ghosts are already eaten by pacman, and this is helpful to reset the color and normal behavior
+    int move_counter; //count time, make speed slow
 } Ghost;
 
 Ghost ghosts[GHOST_AMOUNT];
 
-int blue;
+int blue; // set a whole mode for power-pacman
 int powerpellet_time = 0;
 
 
@@ -134,7 +138,6 @@ void move_pacman(int dy, int dx){
                 gx = rand() % (COLS-2) + 1;
                 gy = rand() % (ROWS-2) + 1;
             } while(map[gy][gx] == WALL || (gx == pacman_x && gy == pacman_y)||map[gy][gx] != '.');
-
             //get start
             ghosts[i].x = ghosts[i].start_x = gx;
             ghosts[i].y = ghosts[i].start_y = gy;
