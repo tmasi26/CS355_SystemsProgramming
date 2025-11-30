@@ -8,6 +8,7 @@
 #include <ncurses.h>
 #include <stdlib.h>
 #include <time.h>
+#include <unistd.h>
 
 // SYMBOLS
 #define WALL '#'
@@ -74,6 +75,17 @@ int running = 1;
 int points = 0;
 int lives = 3;
 
+// PAC-MAN Position and movement (global variables)
+int pacman_x = 17;
+int pacman_y = 3;
+int pacman_dx = 0;
+int pacman_dy = 0;
+int pacman_speed = 3;  // Higher number = slower movement
+int pacman_move_counter = 0;
+
+// Spawn power-pellets occasionally. Track last_spawned so we don't spawn every frame.
+int last_power_spawn_points = -1;
+
 //CREATE BASIC MAP (global)
 char map[ROWS][COLS+1] = {
     "###########################################################",
@@ -108,22 +120,6 @@ char map[ROWS][COLS+1] = {
     "###########################################################"
 };
 
-char *game_over[6]= {
-    " ######*  #####*  ###*   ###* #######*    #####*  ##*   ##* #######* ######*  ",
-    "##****** ##***##* ####* ####* ##*****    ##***##* ##*   ##* ##*****  ##***##* ",
-    "##* ###* #######* ##*####*##* #####*     ##***##*  ##* ##*  #####*   #######* ",
-    "##* *##* ##***##* ##**##**##* ##***      ##***##*   ####*   ##***    ##*  ##* ",
-    "*######* ##*  ##* ##* **  ##* #######*    #####*     ##*    #######* ##*  ##* ",
-    " ******* ***  *** ***     *** ********    ******     **     ******** ***  *** "
-};
-
-// PAC-MAN Position and movement (global variables)
-int pacman_x = 17;
-int pacman_y = 3;
-int pacman_dx = 0;
-int pacman_dy = 0;
-int pacman_speed = 3;  // Higher number = slower movement
-int pacman_move_counter = 0;
 
 void draw_map() {
     for (int y = 0; y < ROWS; y++) {
@@ -215,9 +211,8 @@ void draw_points_corner() {
     attron(COLOR_PAIR(3));          // Use the same color as the points
     mvprintw(30, 0, "Points: %d", points);  // row 0, col 0
     attroff(COLOR_PAIR(5));
-    mvprintw(30, 10, "Lives: %d", lives);  // row 0, col 0
+    mvprintw(30, 25, "Lives: %d", lives);  // row 0, col 0
 }
-
 
 
 // Modify move_pacman function
@@ -274,14 +269,14 @@ void initialize_pellets() {
 }
 
 void check_pellets() {
-    for(int i=0; i<PELLET_AMOUNT; i++) {
+    for(int i = 0; i < PELLET_AMOUNT; i++) {
         if(pellets[i].exist && pacman_x == pellets[i].x && pacman_y == pellets[i].y){
             pellets[i].exist = 0;
             map[pacman_y][pacman_x] = PACMAN;
             blue = 1; 
             powerpellet_time = time(NULL);
 
-            for(int j=0;j<GHOST_AMOUNT;j++){
+            for(int j = 0; j < GHOST_AMOUNT; j++){
                 ghosts[j].scared = 1;
                 ghosts[j].after_eaten = 0;
             }
@@ -321,13 +316,37 @@ void initialize_ghosts(){
         ghosts[i].after_eaten = 0;
     }
 }
+void reset_ghost(){
+for(int i = 0; i < GHOST_AMOUNT; i++){
+        int gx, gy;
+        ghosts[i].scared = 0;  // Start not scared
+        //make sure get a right position in map
+        if (i == 0){
+            gx = 1;
+            gy = 1;
+        }else if (i == 1){
+            gx = COLS - 3;
+            gy = 1;
+        }
+        else if(i == 2){
+            gx = 1;
+            gy = ROWS - 1;
+        }
+        else {
+            gx = COLS - 3;
+            gy = ROWS - 3;
+        }
+        ghosts[i].x = ghosts[i].start_x = gx;
+        ghosts[i].y = ghosts[i].start_y = gy;
+    }
+}
 
 //Ghosts 1-2, uses DFS
 void move_ghosts12(int i) {
-    for(int i = 0; i < 2; i++) {
+    //for(int i = 0; i < 2; i++) {
         // Only move when timer reaches speed
         if (ghosts[i].move_counter < ghosts[i].speed) {
-            continue;
+            //continue;
         }
         int gx = ghosts[i].x;
         int gy = ghosts[i].y;
@@ -356,7 +375,7 @@ void move_ghosts12(int i) {
         }
         // Reset timer
         ghosts[i].move_counter = 0;
-    }
+    //}
 }
 
 //Ghost 3, random movement
@@ -426,6 +445,16 @@ void move_ghosts4(int i){
     ghosts[i].move_counter = 0;
 }
 
+char *game_over[6]= {
+    " ######*  #####*  ###*   ###* #######*    #####*  ##*   ##* #######* ######*  ",
+    "##****** ##***##* ####* ####* ##*****    ##***##* ##*   ##* ##*****  ##***##* ",
+    "##* ###* #######* ##*####*##* #####*     ##***##*  ##* ##*  #####*   #######* ",
+    "##* *##* ##***##* ##**##**##* ##***      ##***##*   ####*   ##***    ##*  ##* ",
+    "*######* ##*  ##* ##* **  ##* #######*    #####*     ##*    #######* ##*  ##* ",
+    " ******* ***  *** ***     *** ********    ******     **     ******** ***  *** "
+};
+
+
 //pacman encounter ghosts
 void check_encounter(){
     for (int i = 0; i < 4; i++){
@@ -439,20 +468,89 @@ void check_encounter(){
                 ghosts[i].move_counter = 0;
                 ghosts[i].direction = rand()%4;
                 continue;
-            } else if (lives != 0 ){
+            } else if (lives > 0){
                 lives--;
-            }else{
-                //no power pellets
-                mvprintw(ROWS+1, 0, "Game-Over!");
+                reset_ghost();
+
+            } else{ 
+                clear(); 
                 refresh();
-                getch();
-                endwin();
-                exit(0);
-            }
-              
+                //no power pellets
+                static int last_second = 0;
+                static int toggle = 0;
+
+                time_t now = time(NULL);
+                if (now != last_second) {
+                    last_second = now;
+                    toggle = !toggle;    // switch color every second
+                }
+                int start_row = 20;  // << draw at the bottom ALWAYS
+                int start_col = 0;         // or center later
+
+                for (int y = 0; y < 6; y++) {
+                    const char *row = game_over[y];
+
+                    for (int x = 0; row[x] != '\0'; x++) {
+                        char ch = row[x];
+                        int scr_y = start_row + y;
+                        int scr_x = start_col + x;
+                        if (ch == '*') {
+                            if (toggle)
+                                attron(COLOR_PAIR(4));
+                            else
+                                attron(COLOR_PAIR(6));
+
+                            mvaddch(scr_y, scr_x, POINT);
+                            attroff(COLOR_PAIR(4));
+                            attroff(COLOR_PAIR(6));
+                        }
+                        else{
+                            attron(A_DIM);
+                            mvaddch(scr_y, scr_x, ch);
+                            attroff(A_DIM);
+                        }
+                    }
+                    refresh(); 
+                }
+                sleep(1);
+                for (int y = 0; y < 6; y++) {
+                    const char *row = game_over[y];
+                    for (int x = 0; row[x] != '\0'; x++) {
+                        char ch = row[x];
+                        int scr_y = start_row + y;
+                        int scr_x = start_col + x;
+                        if (ch == '*') {
+                            if (toggle){
+                                attroff(A_DIM);
+                                attron(COLOR_PAIR(4));
+                            }else{
+                                attroff(A_DIM);
+                                attron(COLOR_PAIR(6));
+                            }
+                            mvaddch(scr_y, scr_x, POINT);
+                            attroff(COLOR_PAIR(4));
+                            attroff(COLOR_PAIR(6));
+                            attroff(A_DIM);
+                        }
+                        else{
+                            attron(A_DIM);
+                            mvaddch(scr_y, scr_x, ch);
+                            attroff(A_DIM);
+                          }
+                    }
+                    refresh();
+                    sleep(1); 
+                }
+            refresh();
+            getch();
+            endwin();
+            exit(0);            
+            }     
         }
     }
 }
+
+
 
 //DRAW GHOSTS
 void draw_ghosts(){
@@ -463,8 +561,6 @@ void draw_ghosts(){
     }
 }
 
-// Spawn power-pellets occasionally. Track last_spawned so we don't spawn every frame.
-int last_power_spawn_points = -1;
 
 void fruit() {
     // spawn at multiples of 25 once (ignore zero)
