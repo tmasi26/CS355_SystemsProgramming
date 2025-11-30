@@ -28,6 +28,9 @@
 //Power pellets
 # define PELLET_AMOUNT 4
 
+// set a game stauts
+int win = 0;
+
 //GHOST structure
 typedef struct {
     int x, y;  
@@ -59,6 +62,9 @@ int blue;
 int powerpellet_time = 0;
 int fruit_location[12][2];
 int fruit_count = 0;
+
+//if pacman eat a ghosts, there is some extra points
+int ghosts_eaten = 0;
 
 int opposite(int dir){
     if(dir == 0) return 1;
@@ -445,6 +451,16 @@ void move_ghosts4(int i){
     ghosts[i].move_counter = 0;
 }
 
+char *game_win[6]= {
+    "###*   ###   ##    #####     ## ########  ####*  *#### ",
+    "###*   ###   ##    #####     ##    ##*    #####* *#### ",
+    "###*   ###    ##  ##    ##  ##     ##*    ##* ### *##  ",
+    "###*   ###     ####      ####      ##*    ##** ## *##  ",
+    "###*   ###      ##        ##       ##*    ##*  ######  ",
+    "##########      **        **    ########  ***  ******  ",
+ };
+    
+
 char *game_over[6]= {
     " ######*  #####*  ###*   ###* #######*    #####*  ##*   ##* #######* ######*  ",
     "##****** ##***##* ####* ####* ##*****    ##***##* ##*   ##* ##*****  ##***##* ",
@@ -454,26 +470,8 @@ char *game_over[6]= {
     " ******* ***  *** ***     *** ********    ******     **     ******** ***  *** "
 };
 
-
-//pacman encounter ghosts
-void check_encounter(){
-    for (int i = 0; i < 4; i++){
-        if ((ghosts[i].x == pacman_x && ghosts[i].y == pacman_y) || (ghosts[i].prev_x == pacman_x && ghosts[i].prev_y == pacman_y) ){
-            //if power pellets, blue mode
-            if(ghosts[i].scared){
-                ghosts[i].x = ghosts[i].start_x;
-                ghosts[i].y = ghosts[i].start_y;
-                ghosts[i].scared = 0;
-                ghosts[i].speed = 2 + i; //different speed
-                ghosts[i].move_counter = 0;
-                ghosts[i].direction = rand()%4;
-                continue;
-            } else if (lives > 0){
-                lives--;
-                reset_ghost();
-
-            } else{ 
-                clear(); 
+void show_message(char *message[], int rows, int start_row, int start_col){
+    clear(); 
                 refresh();
                 //no power pellets
                 static int last_second = 0;
@@ -545,6 +543,34 @@ void check_encounter(){
             getch();
             endwin();
             exit(0);            
+}
+
+
+//pacman encounter ghosts
+void check_encounter(){
+    for (int i = 0; i < 4; i++){
+        if ((ghosts[i].x == pacman_x && ghosts[i].y == pacman_y) || (ghosts[i].prev_x == pacman_x && ghosts[i].prev_y == pacman_y) ){
+            //if power pellets, blue mode
+            if(ghosts[i].scared){
+
+               reset_ghost(i);
+                ghosts[i].speed = 2 + i; //different speed
+                ghosts[i].move_counter = 0;
+                ghosts[i].direction = rand()%4;
+                ghost_eaten ++;
+                int ghost_eaten_point = 200 * (1 << (ghost_eaten - 1)); 
+                points += ghost_eaten_point;
+                
+                continue;
+            } else if (lives > 0){
+                //only when ghosts is not scared, the lives will reduce
+            if(ghosts[i].scared == 0){
+                lives--;
+                }
+                reset_ghost();
+
+            } else{ 
+                show_message(game_over, 6, 20, 0);
             }     
         }
     }
@@ -594,6 +620,8 @@ void check_fruit(){
 }
 
 
+
+
 //blue mode
 void blue_ghosts() {
     for(int i = 0; i < GHOST_AMOUNT; i++) {
@@ -607,6 +635,20 @@ void blue_ghosts() {
         }
     }
 }
+
+void check_dots() {
+    //traverse each location
+    for (int y = 0; y < ROWS; y++) {
+        for (int x = 0; x < COLS; x++) {
+            if (map[y][x] == POINT) {
+                win = 0;
+                return;
+            }
+        }
+    }
+    win = 1;
+}
+
 
 int main() {
     initscr();
@@ -695,12 +737,20 @@ int main() {
             ghosts[i].color_pair = i + 4;
             ghosts[i].speed = 3 + i;
         }
+            ghost_eaten = 0;//reset ghost points
     }
 
         fruit();
         check_fruit();
         check_encounter();
         blue_ghosts();
+        check_dots();
+
+         if (win) {
+            show_message(game_win, 6, 10, 0);
+            mvprintw(30, 30, "Your Points is: %d\n", points);
+        }
+        
         clear();
 
         draw_map();  
