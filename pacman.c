@@ -32,6 +32,7 @@
 int win = 0;
 
 //GHOST structure
+//Shiqi
 typedef struct {
     int x, y;  
     int prev_x, prev_y; 
@@ -49,6 +50,7 @@ typedef struct {
 Ghost ghosts[GHOST_AMOUNT];
 
 //PowerPellets structure
+//Shiqi
 typedef struct{
     int x, y;
     int exist;
@@ -66,6 +68,7 @@ int fruit_count = 0;
 //if pacman eat a ghosts, there is some extra points
 int ghosts_eaten = 0;
 
+//Shiqi
 int opposite(int dir){
     if(dir == 0) return 1;
     if(dir == 1) return 0;
@@ -79,7 +82,7 @@ int dy[4] = {-1, 1, 0, 0};
 
 int running = 1;
 int points = 0;
-int lives = 3;
+int lives = 100;
 
 // PAC-MAN Position and movement (global variables)
 int pacman_x = 17;
@@ -93,6 +96,7 @@ int pacman_move_counter = 0;
 int last_power_spawn_points = -1;
 
 //CREATE BASIC MAP (global)
+//Shiqi + Tess
 char map[ROWS][COLS+1] = {
     "###########################################################",
     "# . . . . . . . . . . . . . . . . . . . . . . . . . . . . #",
@@ -126,7 +130,7 @@ char map[ROWS][COLS+1] = {
     "###########################################################"
 };
 
-
+//Tess + Shiqi
 void draw_map() {
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
@@ -154,6 +158,7 @@ void draw_map() {
 }
 
 // Draw a small banner / points display at the TOP LEFT (row 0..5, col 0..width)
+//Tess
 void draw_pacman_label() {
     static int last_second = 0;
     static int toggle = 0;
@@ -202,6 +207,7 @@ void draw_pacman_label() {
 }
 
 // Tunnel
+//Shiqi
 void tunnel(int *x, int y, int width) {
     if (y == TUNNEL_HEIGHT || (y == TUNNEL_HEIGHT + 1) || (y == TUNNEL_HEIGHT - 1)) {
         if (*x < 0){
@@ -213,6 +219,7 @@ void tunnel(int *x, int y, int width) {
 }
 
 // Draw the points collected in the top-left corner
+//Tess
 void draw_points_corner() {
     attron(COLOR_PAIR(3));          // Use the same color as the points
     mvprintw(30, 0, "Points: %d", points);  // row 0, col 0
@@ -222,6 +229,7 @@ void draw_points_corner() {
 
 
 // Modify move_pacman function
+//Tess + Shiqi
 void move_pacman() {
     pacman_move_counter++;
     if (pacman_move_counter < pacman_speed) {
@@ -259,6 +267,7 @@ void move_pacman() {
     }
 }
 
+//Shiqi
 void initialize_pellets() {
     int positions[PELLET_AMOUNT][2] = {
         {2, 1},    
@@ -273,7 +282,7 @@ void initialize_pellets() {
         map[pellets[i].y][pellets[i].x] = 'O'; 
     }
 }
-
+//Shiqi
 void check_pellets() {
     for(int i = 0; i < PELLET_AMOUNT; i++) {
         if(pellets[i].exist && pacman_x == pellets[i].x && pacman_y == pellets[i].y){
@@ -292,6 +301,7 @@ void check_pellets() {
 
 //initialize ghosts
 // In initialize_ghosts(), make ghosts much slower:
+//Tess + Shiqi
 void initialize_ghosts(){
     srand(time(NULL));
     for(int i = 0; i < GHOST_AMOUNT; i++){
@@ -307,7 +317,7 @@ void initialize_ghosts(){
         }
         else if(i == 2){
             gx = 1;
-            gy = ROWS - 1;
+            gy = ROWS - 3;
         }
         else {
             gx = COLS - 3;
@@ -322,8 +332,9 @@ void initialize_ghosts(){
         ghosts[i].after_eaten = 0;
     }
 }
+//Tess
 void reset_ghost(){
-for(int i = 0; i < GHOST_AMOUNT; i++){
+    for(int i = 0; i < GHOST_AMOUNT; i++){
         int gx, gy;
         ghosts[i].scared = 0;  // Start not scared
         //make sure get a right position in map
@@ -336,11 +347,11 @@ for(int i = 0; i < GHOST_AMOUNT; i++){
         }
         else if(i == 2){
             gx = 1;
-            gy = ROWS - 1;
+            gy = ROWS - 2;
         }
         else {
             gx = COLS - 3;
-            gy = ROWS - 3;
+            gy = ROWS - 2;
         }
         ghosts[i].x = ghosts[i].start_x = gx;
         ghosts[i].y = ghosts[i].start_y = gy;
@@ -348,6 +359,7 @@ for(int i = 0; i < GHOST_AMOUNT; i++){
 }
 
 //Ghosts 1-2, uses DFS
+//Tess & Shiqi
 void move_ghosts12(int i) {
     //for(int i = 0; i < 2; i++) {
         // Only move when timer reaches speed
@@ -385,6 +397,7 @@ void move_ghosts12(int i) {
 }
 
 //Ghost 3, random movement
+//Shiqi
 void move_ghosts3(int i){
     ghosts[i].move_counter++;
     if (ghosts[i].move_counter < ghosts[i].speed){
@@ -439,6 +452,7 @@ void move_ghosts3(int i){
 }
 
 //Ghost 4, either DFS or random movement
+//Shiqi
 void move_ghosts4(int i){
     if (ghosts[i].move_counter < ghosts[i].speed) return;
     int choice = rand() % 3;
@@ -451,16 +465,17 @@ void move_ghosts4(int i){
     ghosts[i].move_counter = 0;
 }
 
+//Shiqi
 char *game_win[6]= {
-    "###*   ###   ##    #####     ## ########  ####*  *#### ",
-    "###*   ###   ##    #####     ##    ##*    #####* *#### ",
-    "###*   ###    ##  ##    ##  ##     ##*    ##* ### *##  ",
-    "###*   ###     ####      ####      ##*    ##** ## *##  ",
-    "###*   ###      ##        ##       ##*    ##*  ######  ",
-    "##########      **        **    ########  ***  ******  ",
- };
+    "##*   ##*    ##*  ####*  ##* ########* ####*   *##* ",
+    "##*   ##*    ##*  ####*  ##*    ##***  #####*  *##*",
+    "##*   ##*    ##* ##**##* ##*    ##*    ##* ##* *##* ",
+    "##*   ##*     ####*   ####*     ##*    ##** ##**##* ",
+    "########*      ##*     ##*   ########* ##*   #####* ",
+    "*********      **      **    ********  ***   *****  ",
+    };
     
-
+//Tess
 char *game_over[6]= {
     " ######*  #####*  ###*   ###* #######*    #####*  ##*   ##* #######* ######*  ",
     "##****** ##***##* ####* ####* ##*****    ##***##* ##*   ##* ##*****  ##***##* ",
@@ -470,7 +485,8 @@ char *game_over[6]= {
     " ******* ***  *** ***     *** ********    ******     **     ******** ***  *** "
 };
 
-void show_message(char *message[], int rows, int start_row, int start_col){
+//Shiqi + Tess
+void show_message(char *message[], int rows, int start_row, int start_col, int color){
     clear(); 
                 refresh();
                 //no power pellets
@@ -482,11 +498,11 @@ void show_message(char *message[], int rows, int start_row, int start_col){
                     last_second = now;
                     toggle = !toggle;    // switch color every second
                 }
-                int start_row = 20;  // << draw at the bottom ALWAYS
-                int start_col = 0;         // or center later
+                start_row = 20;  // << draw at the bottom ALWAYS
+                start_col = 0;         // or center later
 
                 for (int y = 0; y < 6; y++) {
-                    const char *row = game_over[y];
+                    const char *row = message[y];
 
                     for (int x = 0; row[x] != '\0'; x++) {
                         char ch = row[x];
@@ -494,13 +510,13 @@ void show_message(char *message[], int rows, int start_row, int start_col){
                         int scr_x = start_col + x;
                         if (ch == '*') {
                             if (toggle)
-                                attron(COLOR_PAIR(4));
+                                attron(COLOR_PAIR(color));
                             else
-                                attron(COLOR_PAIR(6));
+                                attron(COLOR_PAIR(color+2));
 
                             mvaddch(scr_y, scr_x, POINT);
-                            attroff(COLOR_PAIR(4));
-                            attroff(COLOR_PAIR(6));
+                            attroff(COLOR_PAIR(color));
+                            attroff(COLOR_PAIR(color+2));
                         }
                         else{
                             attron(A_DIM);
@@ -512,7 +528,7 @@ void show_message(char *message[], int rows, int start_row, int start_col){
                 }
                 sleep(1);
                 for (int y = 0; y < 6; y++) {
-                    const char *row = game_over[y];
+                    const char *row = message[y];
                     for (int x = 0; row[x] != '\0'; x++) {
                         char ch = row[x];
                         int scr_y = start_row + y;
@@ -520,14 +536,14 @@ void show_message(char *message[], int rows, int start_row, int start_col){
                         if (ch == '*') {
                             if (toggle){
                                 attroff(A_DIM);
-                                attron(COLOR_PAIR(4));
+                                attron(COLOR_PAIR(color));
                             }else{
                                 attroff(A_DIM);
-                                attron(COLOR_PAIR(6));
+                                attron(COLOR_PAIR(color+2));
                             }
                             mvaddch(scr_y, scr_x, POINT);
-                            attroff(COLOR_PAIR(4));
-                            attroff(COLOR_PAIR(6));
+                            attroff(COLOR_PAIR(color));
+                            attroff(COLOR_PAIR(color+2));
                             attroff(A_DIM);
                         }
                         else{
@@ -547,38 +563,38 @@ void show_message(char *message[], int rows, int start_row, int start_col){
 
 
 //pacman encounter ghosts
+//Shiqi + Tess
 void check_encounter(){
     for (int i = 0; i < 4; i++){
         if ((ghosts[i].x == pacman_x && ghosts[i].y == pacman_y) || (ghosts[i].prev_x == pacman_x && ghosts[i].prev_y == pacman_y) ){
             //if power pellets, blue mode
             if(ghosts[i].scared){
-
-               reset_ghost(i);
+                ghosts[i].x = ghosts[i].start_x;
+                ghosts[i].y = ghosts[i].start_y;
                 ghosts[i].speed = 2 + i; //different speed
                 ghosts[i].move_counter = 0;
                 ghosts[i].direction = rand()%4;
-                ghost_eaten ++;
-                int ghost_eaten_point = 200 * (1 << (ghost_eaten - 1)); 
+                ghosts_eaten++;
+                int ghost_eaten_point = 20 + 20*(ghosts_eaten-1); 
                 points += ghost_eaten_point;
                 
                 continue;
             } else if (lives > 0){
                 //only when ghosts is not scared, the lives will reduce
-            if(ghosts[i].scared == 0){
-                lives--;
+                if(ghosts[i].scared == 0){
+                    lives--;
                 }
                 reset_ghost();
 
             } else{ 
-                show_message(game_over, 6, 20, 0);
+                show_message(game_over, 6, 20, 0, 4);
             }     
         }
     }
 }
 
-
-
 //DRAW GHOSTS
+//Shiqi
 void draw_ghosts(){
     for(int i=0; i < GHOST_AMOUNT; i++){
         attron(COLOR_PAIR(ghosts[i].color_pair));
@@ -587,7 +603,7 @@ void draw_ghosts(){
     }
 }
 
-
+//Tess
 void fruit() {
     // spawn at multiples of 25 once (ignore zero)
     if (points > 0 && points % 50 == 0 && points != last_power_spawn_points) {
@@ -608,7 +624,7 @@ void fruit() {
         }
     }
 }
-
+//Tess
 void check_fruit(){
     for (int i = 0; i < 4; i++){
         for (int j  = 0; j < 4; j++){
@@ -619,10 +635,8 @@ void check_fruit(){
     }
 }
 
-
-
-
 //blue mode
+//Shiqi
 void blue_ghosts() {
     for(int i = 0; i < GHOST_AMOUNT; i++) {
         // 1. just enter blue mode
@@ -636,6 +650,7 @@ void blue_ghosts() {
     }
 }
 
+//Shiqi
 void check_dots() {
     //traverse each location
     for (int y = 0; y < ROWS; y++) {
@@ -649,7 +664,7 @@ void check_dots() {
     win = 1;
 }
 
-
+//Shiqi + Tess
 int main() {
     initscr();
     noecho();
@@ -737,7 +752,7 @@ int main() {
             ghosts[i].color_pair = i + 4;
             ghosts[i].speed = 3 + i;
         }
-            ghost_eaten = 0;//reset ghost points
+            ghosts_eaten = 0;//reset ghost points
     }
 
         fruit();
@@ -747,7 +762,7 @@ int main() {
         check_dots();
 
          if (win) {
-            show_message(game_win, 6, 10, 0);
+            show_message(game_win, 6, 10, 0, 0);
             mvprintw(30, 30, "Your Points is: %d\n", points);
         }
         
