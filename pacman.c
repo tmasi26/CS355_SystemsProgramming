@@ -399,53 +399,35 @@ void move_ghosts12(int i) {
 //Ghost 3, random movement
 //Shiqi
 void move_ghosts3(int i){
-    ghosts[i].move_counter++;
-    if (ghosts[i].move_counter < ghosts[i].speed){
-        return;
-    }
+     if (ghosts[i].move_counter < ghosts[i].speed) return;
     int nx = ghosts[i].x + dx[ghosts[i].direction];
     int ny = ghosts[i].y + dy[ghosts[i].direction];
+    tunnel(&nx, ny, WIDTH);
 
     if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS &&
         map[ny][nx] != WALL) {
-        if (map[ny][nx+1] == WALL){
-            ghosts[i].x = nx - 1;
-        } else if (map[ny][nx-1] == WALL){
-            ghosts[i].x = nx + 1;
-        } else{
-            ghosts[i].x = nx;
-        }
+        ghosts[i].x = nx;
         ghosts[i].y = ny;
     } else {
         // Choose a new valid direction randomly
         int possible[4];
         int count = 0;
-
-        // check all directions except opposite
-        for(int d=0; d<4; d++){
-            if(d == opposite(ghosts[i].direction)) continue;
+        for (int d = 0; d < 4; d++) {
+            reduce go back and forth
+            if (d == opposite(ghosts[i].direction)) continue;
             int tx = ghosts[i].x + dx[d];
             int ty = ghosts[i].y + dy[d];
-            if(tx >=0 && tx < COLS && ty >=0 && ty < ROWS && map[ty][tx] != WALL){
+            if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS &&
+                map[ty][tx] != WALL) {
                 possible[count++] = d;
             }
         }
-
-        if(count > 0){
-            // pick the direction that minimizes distance to Pac-Man
-            int best = 0;
-            int min_dist = 1000;
-            for(int k=0;k<count;k++){
-                int d = possible[k];
-                int dist = abs((ghosts[i].x + dx[d]) - pacman_x) + abs((ghosts[i].y + dy[d]) - pacman_y);
-                if(dist < min_dist){
-                    min_dist = dist;
-                    best = k;
-                }
-            }
-            ghosts[i].direction = possible[best];
+        if (count > 0) {
+            ghosts[i].direction = possible[rand() % count];
             ghosts[i].x += dx[ghosts[i].direction];
             ghosts[i].y += dy[ghosts[i].direction];
+        } else {
+            ghosts[i].direction = opposite(ghosts[i].direction);
         }
     }
     ghosts[i].move_counter = 0;
@@ -571,6 +553,7 @@ void check_encounter(){
             if(ghosts[i].scared){
                 ghosts[i].x = ghosts[i].start_x;
                 ghosts[i].y = ghosts[i].start_y;
+                ghosts[i].scared = 0; //after be eaten, scared should be 0
                 ghosts[i].speed = 2 + i; //different speed
                 ghosts[i].move_counter = 0;
                 ghosts[i].direction = rand()%4;
