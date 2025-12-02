@@ -1,10 +1,16 @@
 //Pacman game for final project CS 355
 //Authors: Tessa Masi, Shiqi Tan
 
-//Determine code for ghost AI, determine how to create the maze. 
-//Want to make a maze that looks like 'CS 355'
+//This game of Pacman plays 1 round with:
+    // 4 ghosts (2 DFS search, 1 random movement, and 1 60/30 DFS, random movement)
+    // 4 power pellets
+    // ~ 3 fruit
+    // a tunnel
+    // flashing Pacman sign
+    // U WIN / GAME OVER sign
+    // 3 lives
 
-
+// IMPORT LIBRARIES
 #include <ncurses.h>
 #include <stdlib.h>
 #include <time.h>
@@ -15,21 +21,18 @@
 #define PACMAN 'C' 
 #define EMPTY ' '
 #define POINT '.'
-#define CELL_SIZE 2  // Each corridor step is 2 map units wide
-#define WIDTH 59
-#define TUNNEL_HEIGHT 15
+#define CELL_SIZE 2         // Each corridor step is 2 map units wide
+#define WIDTH 59            //Location of east tunnel
+#define TUNNEL_HEIGHT 15    //tunnel height
 
 // MAP SIZE
 #define ROWS 30
 #define COLS 60
 
-//create ghost
+//4 Ghosts created
 #define GHOST_AMOUNT 4
-//Power pellets
+//4 Power pellets created
 # define PELLET_AMOUNT 4
-
-// set a game stauts
-int win = 0;
 
 //GHOST structure
 //Shiqi
@@ -58,17 +61,24 @@ typedef struct{
     //exist = 0 means powerpellets are eaten by pacman
 }PowerPellet;
 
+// set a game stauts
+int win = 0;
 
-PowerPellet pellets[4];
+//Creates 4 pellets
+PowerPellet pellets[PELLET_AMOUNT];
+// if blue = 0, ghosts normal. blue = 1, ghosts in scared mode
 int blue;
+//bluemode time, initialized to zero. Set to 10s when blue mode in action
 int powerpellet_time = 0;
+//holds locations of where fruit have spawned to memory
 int fruit_location[12][2];
+//number of fruits collected
 int fruit_count = 0;
-
 //if pacman eat a ghosts, there is some extra points
 int ghosts_eaten = 0;
 
 //Shiqi
+//Directional changes if ghost needs to turn around
 int opposite(int dir){
     if(dir == 0) return 1;
     if(dir == 1) return 0;
@@ -77,12 +87,16 @@ int opposite(int dir){
 }
 
 //ghost direction
-int dx[4] = {0, 0, -1, 1};  
-int dy[4] = {-1, 1, 0, 0};
+// {down, up, left, right}
+int dx[4] = {0, 0, -1, 1}; // {0, 0, left, right}
+int dy[4] = {-1, 1, 0, 0}; // {down, up, 0, 0}
 
+//Check if game is running
 int running = 1;
+//Running total of points
 int points = 0;
-int lives = 100;
+//Number of lives
+int lives = 5;
 
 // PAC-MAN Position and movement (global variables)
 int pacman_x = 17;
@@ -92,11 +106,12 @@ int pacman_dy = 0;
 int pacman_speed = 3;  // Higher number = slower movement
 int pacman_move_counter = 0;
 
-// Spawn power-pellets occasionally. Track last_spawned so we don't spawn every frame.
-int last_power_spawn_points = -1;
+// Spawn fruits occasionally. Track last_spawned so we don't spawn every frame.
+int last_fruit_spawn_points = -1;
 
 //CREATE BASIC MAP (global)
 //Shiqi + Tess
+//It says CS 355 :)
 char map[ROWS][COLS+1] = {
     "###########################################################",
     "# . . . . . . . . . . . . . . . . . . . . . . . . . . . . #",
@@ -106,7 +121,7 @@ char map[ROWS][COLS+1] = {
     "# . ##     ## . ######### . #     # . ##### . ##### . # . #",
     "# . ##     ## . #       # . ###   # . ##### . ##### . # . #",
     "# . ##     ## . #       # . ###   # . ##### . # . . . # . #",
-    "# . ##     ## . ######### . ###   # . # . . . ##### . # . #",
+    "# . ##     ## . #   ##### . ###   # . # . . . ##### . # . #",
     "# . ##  ##### . #   ##### . ##   ## . ##### . ##### . # . #",
     "# . ##  ##### . #   ##### . ###   # . ##### . ##### . # . #",
     "# . ##  ##### . #       # . ###   # . ##### . ##### . . . #",
@@ -131,20 +146,22 @@ char map[ROWS][COLS+1] = {
 };
 
 //Tess + Shiqi
+//This method draws out the map with the correct colors
 void draw_map() {
     for (int y = 0; y < ROWS; y++) {
         for (int x = 0; x < COLS; x++) {
             char ch = map[y][x];
+            //if #, replace with blue wall
             if (ch == '#') {
                 attron(COLOR_PAIR(1));
                 mvaddch(y, x, ' ');
                 attroff(COLOR_PAIR(1));
-            }else if (ch == 'I'){
-                mvaddch(y, x, ' ');
+            //if C, make yellow
             }else if (ch == 'C') {
                 attron(COLOR_PAIR(2));
                 mvaddch(y, x, PACMAN);
                 attroff(COLOR_PAIR(2));
+            //if O keep white
             } else if (ch == 'O'){
                 attron(COLOR_PAIR(3));
                 mvaddch(y, x, 'O');
@@ -157,13 +174,13 @@ void draw_map() {
     }
 }
 
-// Draw a small banner / points display at the TOP LEFT (row 0..5, col 0..width)
 //Tess
+// This method draws a flashing pacman banner at the bottom of the screen
 void draw_pacman_label() {
     static int last_second = 0;
     static int toggle = 0;
-
-    time_t now = time(NULL);
+    //This creates the "flashing lights"
+    time_t now = time(NULL); //will give the current time
     if (now != last_second) {
         last_second = now;
         toggle = !toggle;    // switch color every second
@@ -177,8 +194,8 @@ void draw_pacman_label() {
         "  ##*      ##*  ##* *######* ##* **  ##* ##*  ##* ##* *####* ",
         "  ***      ***  ***  ******* ***     *** ***  *** ***  ***** "
     };
-    int start_row = ROWS + 1;  // << draw at the bottom ALWAYS
-    int start_col = 0;         // or center later
+    int start_row = ROWS + 1;  // draw at the bottom 
+    int start_col = 0;      
 
     for (int y = 0; y < 6; y++) {
         const char *row = points_map[y];
@@ -189,9 +206,9 @@ void draw_pacman_label() {
             int scr_x = start_col + x;
             if (ch == '*') {
                 if (toggle)
-                    attron(COLOR_PAIR(2));
+                    attron(COLOR_PAIR(2)); //switch between blue and orange
                 else
-                    attron(COLOR_PAIR(5));
+                    attron(COLOR_PAIR(5)); //switch between blue and orange
 
                 mvaddch(scr_y, scr_x, POINT);
                 attroff(COLOR_PAIR(2));
@@ -206,8 +223,9 @@ void draw_pacman_label() {
     }
 }
 
-// Tunnel
+
 //Shiqi
+// This method creates a tunnel for pacman to travel through
 void tunnel(int *x, int y, int width) {
     if (y == TUNNEL_HEIGHT || (y == TUNNEL_HEIGHT + 1) || (y == TUNNEL_HEIGHT - 1)) {
         if (*x < 0){
@@ -218,8 +236,8 @@ void tunnel(int *x, int y, int width) {
     }
 }
 
-// Draw the points collected in the top-left corner
 //Tess
+// This method draws the points and lives left at the bottom of the screen
 void draw_points_corner() {
     attron(COLOR_PAIR(3));          // Use the same color as the points
     mvprintw(30, 0, "Points: %d", points);  // row 0, col 0
@@ -228,8 +246,10 @@ void draw_points_corner() {
 }
 
 
-// Modify move_pacman function
 //Tess + Shiqi
+//This method controls the movement for pacman
+//if in a column where there are points, pacman will automatically lock to the 
+//middle column
 void move_pacman() {
     pacman_move_counter++;
     if (pacman_move_counter < pacman_speed) {
@@ -268,14 +288,16 @@ void move_pacman() {
 }
 
 //Shiqi
+//This method spawns the power pellets
 void initialize_pellets() {
+    //pellets put in corners of the map
     int positions[PELLET_AMOUNT][2] = {
         {2, 1},    
         {56, 1},   
         {2, 28},   
         {56, 28}   
     };
-    for(int i=0; i<PELLET_AMOUNT; i++) {
+    for(int i = 0; i < PELLET_AMOUNT; i++) {
         pellets[i].x = positions[i][0];
         pellets[i].y = positions[i][1];
         pellets[i].exist = 1;
@@ -283,6 +305,7 @@ void initialize_pellets() {
     }
 }
 //Shiqi
+//This method checks to see if pacman ate the power pellet
 void check_pellets() {
     for(int i = 0; i < PELLET_AMOUNT; i++) {
         if(pellets[i].exist && pacman_x == pellets[i].x && pacman_y == pellets[i].y){
@@ -299,9 +322,9 @@ void check_pellets() {
     }
 }
 
-//initialize ghosts
-// In initialize_ghosts(), make ghosts much slower:
+
 //Tess + Shiqi
+//This method initializes the ghosts in the game in the corners of the map
 void initialize_ghosts(){
     srand(time(NULL));
     for(int i = 0; i < GHOST_AMOUNT; i++){
@@ -332,11 +355,15 @@ void initialize_ghosts(){
         ghosts[i].after_eaten = 0;
     }
 }
+
 //Tess
+//This method resets the ghosts locations if they are either:
+//eaten by pacman
+//if they eat pacman
 void reset_ghost(){
     for(int i = 0; i < GHOST_AMOUNT; i++){
         int gx, gy;
-        ghosts[i].scared = 0;  // Start not scared
+        //ghosts[i].scared = 0;  // Start not scared
         //make sure get a right position in map
         if (i == 0){
             gx = 1;
@@ -358,8 +385,9 @@ void reset_ghost(){
     }
 }
 
-//Ghosts 1-2, uses DFS
-//Tess & Shiqi
+
+//Tess
+//Movement of the first two ghosts, DFS. 
 void move_ghosts12(int i) {
     //for(int i = 0; i < 2; i++) {
         // Only move when timer reaches speed
@@ -396,8 +424,9 @@ void move_ghosts12(int i) {
     //}
 }
 
-//Ghost 3, random movement
+
 //Shiqi
+//Movement of Ghost 3, random movement
 void move_ghosts3(int i){
      if (ghosts[i].move_counter < ghosts[i].speed) return;
     int nx = ghosts[i].x + dx[ghosts[i].direction];
@@ -413,7 +442,7 @@ void move_ghosts3(int i){
         int possible[4];
         int count = 0;
         for (int d = 0; d < 4; d++) {
-            reduce go back and forth
+            //reduce go back and forth
             if (d == opposite(ghosts[i].direction)) continue;
             int tx = ghosts[i].x + dx[d];
             int ty = ghosts[i].y + dy[d];
@@ -433,8 +462,9 @@ void move_ghosts3(int i){
     ghosts[i].move_counter = 0;
 }
 
-//Ghost 4, either DFS or random movement
+
 //Shiqi
+//Ghost 4, either DFS or random movement
 void move_ghosts4(int i){
     if (ghosts[i].move_counter < ghosts[i].speed) return;
     int choice = rand() % 3;
@@ -468,6 +498,7 @@ char *game_over[6]= {
 };
 
 //Shiqi + Tess
+//Method presents either "U WIN" or "GAME OVER", then terminates the game. 
 void show_message(char *message[], int rows, int start_row, int start_col, int color){
     clear(); 
                 refresh();
@@ -544,8 +575,9 @@ void show_message(char *message[], int rows, int start_row, int start_col, int c
 }
 
 
-//pacman encounter ghosts
+
 //Shiqi + Tess
+//Checks to see if pacman has encountered a ghost
 void check_encounter(){
     for (int i = 0; i < 4; i++){
         if ((ghosts[i].x == pacman_x && ghosts[i].y == pacman_y) || (ghosts[i].prev_x == pacman_x && ghosts[i].prev_y == pacman_y) ){
@@ -576,8 +608,9 @@ void check_encounter(){
     }
 }
 
-//DRAW GHOSTS
+
 //Shiqi
+//draws ghosts colors
 void draw_ghosts(){
     for(int i=0; i < GHOST_AMOUNT; i++){
         attron(COLOR_PAIR(ghosts[i].color_pair));
@@ -587,9 +620,10 @@ void draw_ghosts(){
 }
 
 //Tess
+//spawns fruit
 void fruit() {
     // spawn at multiples of 25 once (ignore zero)
-    if (points > 0 && points % 50 == 0 && points != last_power_spawn_points) {
+    if (points > 0 && points % 50 == 0 && points != last_fruit_spawn_points) {
         int rx, ry;
         // try to find a '.' location to replace with 'B' (power pellet)
         for (int tries = 0; tries < 200; tries++) {
@@ -601,13 +635,14 @@ void fruit() {
                 fruit_count++;
 
                 map[ry][rx] = 'B';   // mark power pellet on map
-                last_power_spawn_points = points;
+                last_fruit_spawn_points = points;
                 break;
             }
         }
     }
 }
 //Tess
+//checks if pacman ate the fruit
 void check_fruit(){
     for (int i = 0; i < 4; i++){
         for (int j  = 0; j < 4; j++){
@@ -618,8 +653,9 @@ void check_fruit(){
     }
 }
 
-//blue mode
+
 //Shiqi
+//changes the ghosts to blue if in scared mode
 void blue_ghosts() {
     for(int i = 0; i < GHOST_AMOUNT; i++) {
         // 1. just enter blue mode
@@ -634,6 +670,7 @@ void blue_ghosts() {
 }
 
 //Shiqi
+//checks to see if all the dots were eaten by pacman
 void check_dots() {
     //traverse each location
     for (int y = 0; y < ROWS; y++) {
@@ -649,13 +686,13 @@ void check_dots() {
 
 //Shiqi + Tess
 int main() {
-    initscr();
-    noecho();
-    curs_set(FALSE);
-    keypad(stdscr, TRUE);
-    nodelay(stdscr, TRUE);  // Make getch() non-blocking
-    start_color();
-    use_default_colors();
+    initscr(); //starts ncurses mode
+    noecho(); // stops the terminal from printing keys the user types
+    curs_set(FALSE); // hides the blinking text cursor
+    keypad(stdscr, TRUE); // allows special keys (like arrow keys) to be read by getch()
+    nodelay(stdscr, TRUE);  // Make getch() non-blocking, returns immediately
+    start_color();//enables ncurses color mode
+    use_default_colors(); //allows for transparency-style backgrounds
 
     init_pair(1, COLOR_BLUE, COLOR_BLUE);
     init_pair(2, COLOR_YELLOW, -1);
