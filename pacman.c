@@ -655,14 +655,17 @@ void fruit() {
 //Tess
 //checks if pacman ate the fruit
 void check_fruit(){
-    for (int i = 0; i < 4; i++){
         for (int j  = 0; j < 4; j++){
             if (fruit_location[j][1] == pacman_x && fruit_location[j][0] == pacman_y) {
                 points = points + 100;
+                //if pacman has this fruit, clear this location
+                fruit_location[j][1] = -1; 
+                fruit_location[j][0] = -1;
+                break;
             }   
         }   
     }
-}
+
 
 
 //Shiqi
