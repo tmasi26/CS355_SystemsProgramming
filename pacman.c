@@ -42,11 +42,9 @@ typedef struct {
     int start_x, start_y; 
     int direction;
     int color_pair;
-    int scared;
-    int speed;
-    int after_eaten;
-    int move_counter;
-    int move_timer;
+    int scared; // ghosts status
+    int speed; // ghosts speed
+    int move_counter; // slow ghosts speed
 } Ghost;
 
 //creates # of structs for the # of ghosts needed. 
@@ -66,7 +64,7 @@ int win = 0;
 
 //Creates 4 pellets
 PowerPellet pellets[PELLET_AMOUNT];
-// if blue = 0, ghosts normal. blue = 1, ghosts in scared mode
+// if blue = 0, ghosts normal. blue = 1, ,pacman has powerpellets, ghosts turn into scared mode
 int blue;
 //bluemode time, initialized to zero. Set to 10s when blue mode in action
 int powerpellet_time = 0;
@@ -227,11 +225,12 @@ void draw_pacman_label() {
 //Shiqi
 // This method creates a tunnel for pacman to travel through
 void tunnel(int *x, int y, int width) {
+    //when pacman arrived y=14,15,16
     if (y == TUNNEL_HEIGHT || (y == TUNNEL_HEIGHT + 1) || (y == TUNNEL_HEIGHT - 1)) {
-        if (*x < 0){
-            *x = width - 1;
-        } else if (*x >= width){
-            *x = 1;
+        if (*x < 0){     //too left
+            *x = width - 1;     // travel to the right
+        } else if (*x >= width){     // too right
+            *x = 1;     // travel to the left
         }
     }
 }
@@ -246,7 +245,7 @@ void draw_points_corner() {
 }
 
 
-//Tess + Shiqi
+//Tess
 //This method controls the movement for pacman
 //if in a column where there are points, pacman will automatically lock to the 
 //middle column
@@ -290,17 +289,18 @@ void move_pacman() {
 //Shiqi
 //This method spawns the power pellets
 void initialize_pellets() {
-    //pellets put in corners of the map
+    // pellets is in the four corners of the map
     int positions[PELLET_AMOUNT][2] = {
         {2, 1},    
         {56, 1},   
         {2, 28},   
         {56, 28}   
     };
+    // draw powerpellets
     for(int i = 0; i < PELLET_AMOUNT; i++) {
         pellets[i].x = positions[i][0];
         pellets[i].y = positions[i][1];
-        pellets[i].exist = 1;
+        pellets[i].exist = 1; // at beginning, powerpellets is exist
         map[pellets[i].y][pellets[i].x] = 'O'; 
     }
 }
@@ -308,15 +308,17 @@ void initialize_pellets() {
 //This method checks to see if pacman ate the power pellet
 void check_pellets() {
     for(int i = 0; i < PELLET_AMOUNT; i++) {
+        //if powerpellets is exist and pacman's location is powerpellets' location, pacman can eat powerpellets
         if(pellets[i].exist && pacman_x == pellets[i].x && pacman_y == pellets[i].y){
-            pellets[i].exist = 0;
+            pellets[i].exist = 0; //mark powerpellets as disappering
             map[pacman_y][pacman_x] = PACMAN;
-            blue = 1; 
-            powerpellet_time = time(NULL);
+            blue = 1; // the game turn into blue mode where pacman can eat ghosts
+            powerpellet_time = time(NULL); // record the powerpellets begin time
 
+            //set ghosts stauts
             for(int j = 0; j < GHOST_AMOUNT; j++){
-                ghosts[j].scared = 1;
-                ghosts[j].after_eaten = 0;
+                ghosts[j].scared = 1; // ghosts is scared
+                
             }
         }
     }
@@ -326,7 +328,7 @@ void check_pellets() {
 //Tess + Shiqi
 //This method initializes the ghosts in the game in the corners of the map
 void initialize_ghosts(){
-    srand(time(NULL));
+    srand(time(NULL)); //random number for direction
     for(int i = 0; i < GHOST_AMOUNT; i++){
         int gx, gy;
         ghosts[i].scared = 0;  // Start not scared
@@ -348,11 +350,11 @@ void initialize_ghosts(){
         }
         ghosts[i].x = ghosts[i].start_x = gx;
         ghosts[i].y = ghosts[i].start_y = gy;
-        ghosts[i].direction = rand() % 4;
+        ghosts[i].direction = rand() % 4; //get a random numer for ghosts random direction
         ghosts[i].color_pair = i + 4;
         ghosts[i].speed = 3 + i*2;  // Much higher numbers = slower ghosts
         ghosts[i].move_counter = 0;
-        ghosts[i].after_eaten = 0;
+        
     }
 }
 
@@ -391,9 +393,7 @@ void reset_ghost(){
 void move_ghosts12(int i) {
     //for(int i = 0; i < 2; i++) {
         // Only move when timer reaches speed
-        if (ghosts[i].move_counter < ghosts[i].speed) {
-            //continue;
-        }
+        if (ghosts[i].move_counter < ghosts[i].speed) return;
         int gx = ghosts[i].x;
         int gy = ghosts[i].y;
         ghosts[i].prev_x = ghosts[i].x;
@@ -429,33 +429,41 @@ void move_ghosts12(int i) {
 //Movement of Ghost 3, random movement
 void move_ghosts3(int i){
      if (ghosts[i].move_counter < ghosts[i].speed) return;
+    
+    // keep moving
     int nx = ghosts[i].x + dx[ghosts[i].direction];
     int ny = ghosts[i].y + dy[ghosts[i].direction];
-    tunnel(&nx, ny, WIDTH);
 
+    //check if new location is a wall
     if (nx >= 0 && nx < COLS && ny >= 0 && ny < ROWS &&
         map[ny][nx] != WALL) {
         ghosts[i].x = nx;
         ghosts[i].y = ny;
     } else {
+        //if it's a wall
         // Choose a new valid direction randomly
         int possible[4];
-        int count = 0;
+        int count = 0; // the possible directions amount
+        // try to test all direction
         for (int d = 0; d < 4; d++) {
-            //reduce go back and forth
+            // at first get rid of the opposite direction, reduce go back and forth
             if (d == opposite(ghosts[i].direction)) continue;
+            // test all left directions 
             int tx = ghosts[i].x + dx[d];
             int ty = ghosts[i].y + dy[d];
             if (tx >= 0 && tx < COLS && ty >= 0 && ty < ROWS &&
                 map[ty][tx] != WALL) {
+                //if this direction can walk, join this direction to the possible direction
                 possible[count++] = d;
             }
         }
         if (count > 0) {
+            // randomly choose one direction in possible direction
             ghosts[i].direction = possible[rand() % count];
             ghosts[i].x += dx[ghosts[i].direction];
             ghosts[i].y += dy[ghosts[i].direction];
         } else {
+            // if all other direction is bad, go to opposite
             ghosts[i].direction = opposite(ghosts[i].direction);
         }
     }
@@ -467,11 +475,11 @@ void move_ghosts3(int i){
 //Ghost 4, either DFS or random movement
 void move_ghosts4(int i){
     if (ghosts[i].move_counter < ghosts[i].speed) return;
-    int choice = rand() % 3;
+    int choice = rand() % 3; // 1/3
     if (choice == 0) {
-        move_ghosts12(i); //follow
+        move_ghosts12(i); //1/3 follow
     } else {
-        move_ghosts3(i);   // randomly
+        move_ghosts3(i);   // 2/3 randomly
     }
 
     ghosts[i].move_counter = 0;
@@ -497,7 +505,7 @@ char *game_over[6]= {
     " ******* ***  *** ***     *** ********    ******     **     ******** ***  *** "
 };
 
-//Shiqi + Tess
+//Tess
 //Method presents either "U WIN" or "GAME OVER", then terminates the game. 
 void show_message(char *message[], int rows, int start_row, int start_col, int color){
     clear(); 
@@ -580,28 +588,31 @@ void show_message(char *message[], int rows, int start_row, int start_col, int c
 //Checks to see if pacman has encountered a ghost
 void check_encounter(){
     for (int i = 0; i < 4; i++){
+        // ghosts and pacman are the same
         if ((ghosts[i].x == pacman_x && ghosts[i].y == pacman_y) || (ghosts[i].prev_x == pacman_x && ghosts[i].prev_y == pacman_y) ){
             //if power pellets, blue mode
             if(ghosts[i].scared){
+                // if ghosts is scared, ghosts will back to the start location
                 ghosts[i].x = ghosts[i].start_x;
                 ghosts[i].y = ghosts[i].start_y;
-                ghosts[i].scared = 0; //after be eaten, scared should be 0
-                ghosts[i].speed = 2 + i; //different speed
-                ghosts[i].move_counter = 0;
-                ghosts[i].direction = rand()%4;
-                ghosts_eaten++;
-                int ghost_eaten_point = 20 + 20*(ghosts_eaten-1); 
-                points += ghost_eaten_point;
+                ghosts[i].scared = 0;  // after be eaten, ghosts will return to normal mode, scared should be 0!
+                ghosts[i].speed = 3 + 2*i; // different speed
+                ghosts[i].move_counter = 0; 
+                ghosts[i].direction = rand()%4; 
                 
-                continue;
-            } else if (lives > 0){
+                ghosts_eaten++; // count how many ghosts were eaten
+                int ghost_eaten_point = 20 + 20*(ghosts_eaten-1); // eaten one ghosts, points gain 20, then 40,60,80
+                points += ghost_eaten_point; 
+                continue; // if ghost is scared, lives will not reduce, skip
+            } else if (lives > 1){ // if player still has lives
                 //only when ghosts is not scared, the lives will reduce
-                if(ghosts[i].scared == 0){
+                if(ghosts[i].scared == 0){ 
                     lives--;
                 }
-                reset_ghost();
+                reset_ghost();  // onces a life reduce, reset to the beginning
 
-            } else{ 
+            } else{
+                // if lives = 0 , show game over
                 show_message(game_over, 6, 20, 0, 4);
             }     
         }
@@ -658,13 +669,13 @@ void check_fruit(){
 //changes the ghosts to blue if in scared mode
 void blue_ghosts() {
     for(int i = 0; i < GHOST_AMOUNT; i++) {
-        // 1. just enter blue mode
-        if(blue == 1 && ghosts[i].scared && !ghosts[i].after_eaten) {
-            ghosts[i].speed = 10; 
-            ghosts[i].color_pair = 8;
+        // after pacman has powerpellets, game enter blue mode and ghosts is scared 
+        if(blue == 1 && ghosts[i].scared) {
+            ghosts[i].speed = 10; // speed slow 
+            ghosts[i].color_pair = 8; // blue color
         } else {
             ghosts[i].color_pair = i + 4;
-            ghosts[i].speed = 3 + i; 
+            ghosts[i].speed = 3 + i*2; 
         }
     }
 }
@@ -681,6 +692,7 @@ void check_dots() {
             }
         }
     }
+    // if there is no any POINT, game win
     win = 1;
 }
 
@@ -759,14 +771,17 @@ int main() {
                 ghosts[i].move_counter = 0;
             }
         }
+        
         // blue mode timer check
         if (blue == 1 && powerpellet_time == 0){
             powerpellet_time = time(NULL); // start timer when first triggered
         }
-    
+
+        // after 10 seconds
         if (blue == 1 && time(NULL) - powerpellet_time >= 10) {
-        blue = 0;
-        powerpellet_time = 0;
+        blue = 0; // cancel blue mode
+        powerpellet_time = 0; // reset time
+        // ghosts status, speed and color convert into normal
         for (int i = 0; i < GHOST_AMOUNT; i++) {
             ghosts[i].scared = 0;        
             ghosts[i].color_pair = i + 4;
