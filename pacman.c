@@ -389,7 +389,7 @@ void reset_ghost(){
 
 
 //Tess
-//Movement of the first two ghosts, DFS. 
+//Movement of the first two ghosts, BFS. 
 void move_ghosts12(int i) {
     //for(int i = 0; i < 2; i++) {
         // Only move when timer reaches speed
@@ -398,7 +398,7 @@ void move_ghosts12(int i) {
         int gy = ghosts[i].y;
         ghosts[i].prev_x = ghosts[i].x;
         ghosts[i].prev_y = ghosts[i].y;
-        // --- Ghost chooses direction ---
+        // Ghost chooses direction
         int best_dir = -1;
         int min_dist = 1000;
         for(int d = 0; d < 4; d++) {
@@ -414,7 +414,7 @@ void move_ghosts12(int i) {
                 }
             }
         }
-        // --- Move ghost ---
+        // Move ghost
         if (best_dir != -1) {
             ghosts[i].x += dx[best_dir];
             ghosts[i].y += dy[best_dir];
@@ -472,7 +472,7 @@ void move_ghosts3(int i){
 
 
 //Shiqi
-//Ghost 4, either DFS or random movement
+//Ghost 4, either BFS or random movement
 void move_ghosts4(int i){
     if (ghosts[i].move_counter < ghosts[i].speed) return;
     int choice = rand() % 3; // 1/3
