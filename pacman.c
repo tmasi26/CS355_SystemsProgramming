@@ -85,9 +85,9 @@ int opposite(int dir){
 }
 
 //ghost direction
-// {down, up, left, right}
+// {up, down, left, right}
 int dx[4] = {0, 0, -1, 1}; // {0, 0, left, right}
-int dy[4] = {-1, 1, 0, 0}; // {down, up, 0, 0}
+int dy[4] = {-1, 1, 0, 0}; // {up, down, 0, 0}
 
 //Check if game is running
 int running = 1;
@@ -588,7 +588,7 @@ void show_message(char *message[], int rows, int start_row, int start_col, int c
 //Checks to see if pacman has encountered a ghost
 void check_encounter(){
     for (int i = 0; i < 4; i++){
-        // ghosts and pacman are the same
+        // ghosts and pacman are the same location
         if ((ghosts[i].x == pacman_x && ghosts[i].y == pacman_y) || (ghosts[i].prev_x == pacman_x && ghosts[i].prev_y == pacman_y) ){
             //if power pellets, blue mode
             if(ghosts[i].scared){
